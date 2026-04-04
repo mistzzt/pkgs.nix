@@ -1,0 +1,127 @@
+name: Update Packages
+on:
+  schedule:
+    - cron: "0 6 * * *" # daily at 6 AM UTC
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: "Specific packages to update (space-separated, empty for all)"
+        required: false
+        default: ""
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.find.outputs.matrix }}
+      has-updates: ${{ steps.find.outputs.has-updates }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: find
+        run: |
+          filter="${{ github.event.inputs.packages }}"
+          items="[]"
+          for dir in packages/*/; do
+            pkg=$(basename "$dir")
+            if [ ! -f "$dir/update.py" ]; then
+              continue
+            fi
+            if [ -n "$filter" ]; then
+              echo "$filter" | tr ' ' '\n' | grep -qx "$pkg" || continue
+            fi
+            items=$(echo "$items" | jq -c --arg pkg "$pkg" '. + [{"package": $pkg}]')
+          done
+          echo "matrix={\"include\":$items}" >> "$GITHUB_OUTPUT"
+          if [ "$items" = "[]" ]; then
+            echo "has-updates=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-updates=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  update:
+    needs: discover
+    if: needs.discover.outputs.has-updates == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+
+      - uses: cachix/install-nix-action@v31
+
+      - uses: cachix/cachix-action@v16
+        with:
+          name: ${{ vars.CACHIX_CACHE_NAME }}
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Run update script
+        id: update
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          python3 packages/${{ matrix.package }}/update.py
+
+          if git diff --quiet; then
+            echo "updated=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "updated=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create pull request
+        if: steps.update.outputs.updated == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          pkg="${{ matrix.package }}"
+          branch="update/${pkg}"
+
+          # Read version info for PR title
+          if [ -f "packages/${pkg}/hashes.json" ]; then
+            new_version=$(python3 -c "import json; d=json.load(open('packages/${pkg}/hashes.json')); print(d.get('version', d.get('rev', 'unknown')[:12]))")
+          else
+            new_version="unknown"
+          fi
+
+          git add .
+          git checkout -b "$branch"
+          git commit -m "${pkg}: update to ${new_version}"
+          git push --force origin "$branch"
+
+          # Create or update PR
+          existing_pr=$(gh pr list --head "$branch" --json number --jq '.[0].number // empty')
+          if [ -n "$existing_pr" ]; then
+            echo "Updating existing PR #${existing_pr}"
+            gh pr edit "$existing_pr" \
+              --title "${pkg}: update to ${new_version}" \
+              --body "Automated update of \`${pkg}\` to ${new_version}."
+          else
+            echo "Creating new PR"
+            gh pr create \
+              --title "${pkg}: update to ${new_version}" \
+              --body "Automated update of \`${pkg}\` to ${new_version}." \
+              --label "dependencies,automated" \
+              --base main \
+              --head "$branch"
+          fi
+
+          # Enable auto-merge
+          pr_number=$(gh pr list --head "$branch" --json number --jq '.[0].number')
+          gh pr merge "$pr_number" --auto --squash
