@@ -2,4 +2,5 @@
   anthropic-skills = pkgs.callPackage ./anthropic-skills {};
   cliproxyapi-management-center = pkgs.callPackage ./cliproxyapi-management-center {};
   onscripter-yuri = pkgs.callPackage ./onscripter-yuri {};
+  superpowers-skills = pkgs.callPackage ./superpowers-skills {};
 }

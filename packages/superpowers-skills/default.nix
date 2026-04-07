@@ -4,12 +4,12 @@
 }: let
   data = builtins.fromJSON (builtins.readFile ./hashes.json);
   src = fetchFromGitHub {
-    owner = "anthropics";
-    repo = "skills";
-    rev = data.rev;
+    owner = "obra";
+    repo = "superpowers";
+    rev = "v${data.version}";
     hash = data.hash;
   };
 in
-  runCommand "anthropic-skills" {} ''
+  runCommand "superpowers-skills" {} ''
     cp -r ${src}/skills $out
   ''
