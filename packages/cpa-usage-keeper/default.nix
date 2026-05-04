@@ -1,10 +1,8 @@
 {
   buildGoModule,
-  fetchNpmDeps,
+  buildNpmPackage,
   fetchFromGitHub,
   lib,
-  nodejs_22,
-  npmHooks,
 }: let
   data = builtins.fromJSON (builtins.readFile ./hashes.json);
 
@@ -14,6 +12,20 @@
     rev = "v${data.version}";
     hash = data.hash;
   };
+
+  web = buildNpmPackage {
+    pname = "cpa-usage-keeper-web";
+    inherit (data) version;
+    src = "${src}/web";
+
+    npmDepsHash = data.npmDepsHash;
+
+    installPhase = ''
+      runHook preInstall
+      cp -r dist $out
+      runHook postInstall
+    '';
+  };
 in
   buildGoModule {
     pname = "cpa-usage-keeper";
@@ -21,33 +33,15 @@ in
     inherit (data) version;
 
     vendorHash = data.vendorHash;
-    npmDeps = fetchNpmDeps {
-      src = "${src}/web";
-      hash = data.npmDepsHash;
-    };
-
-    npmRoot = "web";
 
     env.CGO_ENABLED = 1;
-
-    nativeBuildInputs = [
-      nodejs_22
-      npmHooks.npmConfigHook
-    ];
-
-    overrideModAttrs = oldAttrs: {
-      nativeBuildInputs = lib.remove npmHooks.npmConfigHook oldAttrs.nativeBuildInputs;
-      preBuild = null;
-    };
-
-    preBuild = ''
-      npm --prefix="$npmRoot" run build
-    '';
 
     subPackages = ["cmd/server"];
 
     postInstall = ''
       mv $out/bin/server $out/bin/cpa-usage-keeper
+      mkdir -p $out/bin/web
+      cp -r ${web} $out/bin/web/dist
     '';
 
     meta = with lib; {
