@@ -19,7 +19,7 @@
     rcode = [coreutils hostname];
   };
   pythonScripts = {
-    remote = [openssh rsync];
+    remote = []; # use system bundled binaries
   };
   mkShellScript = name: runtimeInputs:
     writeShellApplication {
