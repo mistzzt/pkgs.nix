@@ -68,8 +68,11 @@ def resolve(cfg: Config, name: str | None) -> tuple[str, Entry]:
     return name, entry
 
 
-def rsync_argv(root: Path, entry: Entry, extra: list[str]) -> list[str]:
-    argv = ["rsync", "-avz", "--delete"]
+def rsync_argv(root: Path, entry: Entry, extra: list[str], *, pull: bool) -> list[str]:
+    argv = ["rsync", "-avz"]
+    # Pull is newer-wins, no deletes (remote-produced files land locally without
+    # clobbering local edits). Push mirrors local onto remote.
+    argv += ["-u"] if pull else ["--delete"]
     excludes = cast(list[str], entry.get("excludes", DEFAULT_EXCLUDES))
     for pat in excludes:
         argv += ["--exclude", pat]
@@ -77,7 +80,9 @@ def rsync_argv(root: Path, entry: Entry, extra: list[str]) -> list[str]:
     for pat in includes:
         argv += ["--include", pat]
     argv += extra
-    argv += [f"{root}/", f"{entry['host']}:{entry['dest']}/"]
+    local = f"{root}/"
+    remote = f"{entry['host']}:{entry['dest']}/"
+    argv += [remote, local] if pull else [local, remote]
     return argv
 
 
@@ -136,7 +141,13 @@ def cmd_info(args: argparse.Namespace, cfg: Config, _root: Path) -> int:
 
 def cmd_sync(args: argparse.Namespace, cfg: Config, root: Path) -> int:
     _, entry = resolve(cfg, cast("str | None", args.config))
-    return run(rsync_argv(root, entry, cast(list[str], args.rsync_args)))
+    extra = cast(list[str], args.rsync_args)
+    # Pull first so the push's --delete doesn't wipe remote-produced files
+    # before we've fetched them.
+    rc = run(rsync_argv(root, entry, extra, pull=True))
+    if rc != 0:
+        return rc
+    return run(rsync_argv(root, entry, extra, pull=False))
 
 
 def cmd_run(args: argparse.Namespace, cfg: Config, _root: Path) -> int:
@@ -170,7 +181,7 @@ def main() -> int:
 
     _ = sub.add_parser("info", help="print resolved config and available tasks")
 
-    sp_sync = sub.add_parser("sync", help="rsync the repo to the remote")
+    sp_sync = sub.add_parser("sync", help="rsync remote->local (newer-wins), then local->remote (mirror)")
     _ = sp_sync.add_argument("rsync_args", nargs=argparse.REMAINDER,
                              help="extra rsync flags (prefix with --, e.g. -- -n)")
 
