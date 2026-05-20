@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Sync the current repo to a remote host and run commands there.
 
+`sync` pushes local->remote (mirror with --delete) by default; pass --pull
+for the reverse (remote->local, newer-wins, no deletes).
+
 Reads `.remote.toml` (preferred, gitignored) or `remote.toml` from the repo
 root, or $REMOTE_CONFIG. Each entry under [hosts.<name>] defines `host`,
 `dest`, optional `post_sync`, `excludes`, `includes`, and an optional
@@ -142,12 +145,7 @@ def cmd_info(args: argparse.Namespace, cfg: Config, _root: Path) -> int:
 def cmd_sync(args: argparse.Namespace, cfg: Config, root: Path) -> int:
     _, entry = resolve(cfg, cast("str | None", args.config))
     extra = cast(list[str], args.rsync_args)
-    # Pull first so the push's --delete doesn't wipe remote-produced files
-    # before we've fetched them.
-    rc = run(rsync_argv(root, entry, extra, pull=True))
-    if rc != 0:
-        return rc
-    return run(rsync_argv(root, entry, extra, pull=False))
+    return run(rsync_argv(root, entry, extra, pull=cast(bool, args.pull)))
 
 
 def cmd_run(args: argparse.Namespace, cfg: Config, _root: Path) -> int:
@@ -181,7 +179,9 @@ def main() -> int:
 
     _ = sub.add_parser("info", help="print resolved config and available tasks")
 
-    sp_sync = sub.add_parser("sync", help="rsync remote->local (newer-wins), then local->remote (mirror)")
+    sp_sync = sub.add_parser("sync", help="rsync local->remote (mirror); use --pull for remote->local (newer-wins)")
+    _ = sp_sync.add_argument("--pull", action="store_true",
+                             help="pull remote->local (newer-wins, no deletes) instead of pushing")
     _ = sp_sync.add_argument("rsync_args", nargs=argparse.REMAINDER,
                              help="extra rsync flags (prefix with --, e.g. -- -n)")
 
