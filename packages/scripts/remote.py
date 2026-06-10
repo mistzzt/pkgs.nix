@@ -11,8 +11,9 @@ root, or $REMOTE_CONFIG. Each entry under [hosts.<name>] defines `host`,
 defines tasks shared across all hosts; per-host entries override on collision.
 
 `includes` are emitted before `excludes` so a whitelist can survive a broad
-exclude (rsync filter rules are first-match-wins). To ignore everything under
-`out/` except `out/winner`:
+exclude (rsync filter rules are first-match-wins), and each include's ancestor
+directories are auto-gated so rsync recurses into them. To ignore everything
+under `out/` except `out/winner`, just write the two patterns you care about:
 
     includes = ["out/winner/***"]
     excludes = ["out/**"]
@@ -78,6 +79,33 @@ def resolve(cfg: Config, name: str | None) -> tuple[str, Entry]:
     return name, entry
 
 
+def expand_includes(includes: list[str]) -> list[str]:
+    """Prefix each include with gates for its ancestor directories.
+
+    rsync prunes a directory the moment it matches an exclude, and never
+    recurses below it, so a whitelist like "out/winner/***" is dead unless
+    every parent ("out/") is itself included first. That gate is pure path
+    arithmetic, so derive it rather than making the user hand-write it:
+    "out/winner/***" expands to ["out/", "out/winner/", "out/winner/***"].
+    Results are deduped with order preserved (shared ancestors emit once).
+    """
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def add(pat: str) -> None:
+        if pat not in seen:
+            seen.add(pat)
+            out.append(pat)
+
+    for pat in includes:
+        anchor = "/" if pat.startswith("/") else ""
+        segs = pat.lstrip("/").split("/")
+        for i in range(1, len(segs)):  # every ancestor dir, shallow->deep
+            add(anchor + "/".join(segs[:i]) + "/")
+        add(pat)
+    return out
+
+
 def rsync_argv(root: Path, entry: Entry, extra: list[str], *, pull: bool) -> list[str]:
     argv = ["rsync", "-avz"]
     # Pull is newer-wins, no deletes (remote-produced files land locally without
@@ -85,9 +113,10 @@ def rsync_argv(root: Path, entry: Entry, extra: list[str], *, pull: bool) -> lis
     argv += ["-u"] if pull else ["--delete"]
     # rsync filter rules are first-match-wins in argv order, so includes must
     # precede excludes: that lets a whitelist (e.g. "out/winner/***") survive a
-    # broad exclude (e.g. "out/**"). See the module docstring for the pattern.
+    # broad exclude (e.g. "out/**"). expand_includes() also opens the parent-dir
+    # gates the whitelist needs. See the module docstring for the pattern.
     includes = cast(list[str], entry.get("includes", []))
-    for pat in includes:
+    for pat in expand_includes(includes):
         argv += ["--include", pat]
     excludes = cast(list[str], entry.get("excludes", DEFAULT_EXCLUDES))
     for pat in excludes:
