@@ -9,6 +9,13 @@ root, or $REMOTE_CONFIG. Each entry under [hosts.<name>] defines `host`,
 `dest`, optional `post_sync`, `excludes`, `includes`, and an optional
 `[hosts.<name>.tasks]` table of named commands. A top-level `[tasks]` table
 defines tasks shared across all hosts; per-host entries override on collision.
+
+`includes` are emitted before `excludes` so a whitelist can survive a broad
+exclude (rsync filter rules are first-match-wins). To ignore everything under
+`out/` except `out/winner`:
+
+    includes = ["out/winner/***"]
+    excludes = ["out/**"]
 """
 from __future__ import annotations
 
@@ -76,12 +83,15 @@ def rsync_argv(root: Path, entry: Entry, extra: list[str], *, pull: bool) -> lis
     # Pull is newer-wins, no deletes (remote-produced files land locally without
     # clobbering local edits). Push mirrors local onto remote.
     argv += ["-u"] if pull else ["--delete"]
-    excludes = cast(list[str], entry.get("excludes", DEFAULT_EXCLUDES))
-    for pat in excludes:
-        argv += ["--exclude", pat]
+    # rsync filter rules are first-match-wins in argv order, so includes must
+    # precede excludes: that lets a whitelist (e.g. "out/winner/***") survive a
+    # broad exclude (e.g. "out/**"). See the module docstring for the pattern.
     includes = cast(list[str], entry.get("includes", []))
     for pat in includes:
         argv += ["--include", pat]
+    excludes = cast(list[str], entry.get("excludes", DEFAULT_EXCLUDES))
+    for pat in excludes:
+        argv += ["--exclude", pat]
     argv += extra
     local = f"{root}/"
     remote = f"{entry['host']}:{entry['dest']}/"
