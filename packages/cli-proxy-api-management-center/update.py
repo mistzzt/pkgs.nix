@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Update script for cliproxyapi-management-center package."""
+"""Update script for cli-proxy-api-management-center package."""
 
 import sys
 from pathlib import Path
@@ -28,7 +28,7 @@ def main() -> None:
         print("Already up to date")
         return
 
-    print(f"Updating cliproxyapi-management-center from {current} to {latest}")
+    print(f"Updating cli-proxy-api-management-center from {current} to {latest}")
     url = f"https://github.com/router-for-me/Cli-Proxy-API-Management-Center/releases/download/v{latest}/management.html"
     hash = calculate_url_hash(url)
     print(f"  hash: {hash}")

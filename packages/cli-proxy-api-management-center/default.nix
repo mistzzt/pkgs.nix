@@ -5,7 +5,7 @@
     sha256 = data.hash;
   };
 in
-  pkgs.linkFarm "cliproxyapi-management-center" [
+  pkgs.linkFarm "cli-proxy-api-management-center" [
     {
       name = "index.html";
       path = managementHtml;

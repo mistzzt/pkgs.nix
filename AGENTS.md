@@ -13,7 +13,7 @@ A Nix flake providing custom packages with automated daily updates via GitHub Ac
 nix build .#<package-name>
 
 # Build all packages
-nix build .#anthropic-skills .#cliproxyapi-management-center .#onscripter-yuri
+nix build .#anthropic-skills .#cli-proxy-api-management-center .#onscripter-yuri
 
 # Run a package's update script (requires nix and GITHUB_TOKEN for API rate limits)
 python3 packages/<name>/update.py
@@ -32,7 +32,7 @@ nix shell .#<package-name>
 - `update.py` — standalone script that checks upstream, computes new hashes via `nix-prefetch-url`/`nix store prefetch-file`, and writes `hashes.json`
 
 **Two package patterns exist:**
-- Release-based (onscripter-yuri, cliproxyapi-management-center): tracks GitHub releases, `hashes.json` has `version` field
+- Release-based (onscripter-yuri, cli-proxy-api-management-center): tracks GitHub releases, `hashes.json` has `version` field
 - Commit-based (anthropic-skills): tracks latest commit on a branch, `hashes.json` has `rev` field, derivation is just a `fetchFromGitHub` source
 
 **Updater library** (`scripts/updater/`): shared Python utilities used by all `update.py` scripts. Provides `fetch_github_latest_release`, `fetch_github_latest_commit`, `should_update`, `nix_prefetch_github`, `calculate_url_hash`, and `load_hashes`/`save_hashes`.
