@@ -49,6 +49,9 @@ jobs:
           for f in packages/*.nix; do
             [ -f "$f" ] || continue
             fname=$(basename "$f")
+            if [ "$fname" = "default.nix" ]; then
+              continue
+            fi
             if echo "$changed_files" | grep -q "^packages/${fname}$"; then
               pkg="${fname%.nix}"
               packages=$(echo "$packages" | jq -c --arg pkg "$pkg" '. + [$pkg]')
