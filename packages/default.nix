@@ -2,6 +2,7 @@
   anthropic-skills = pkgs.callPackage ./anthropic-skills {};
   claude-code-statusline = pkgs.callPackage ./claude-code-statusline {};
   cli-proxy-api-management-center = pkgs.callPackage ./cli-proxy-api-management-center {};
+  codex-plugin-cc = pkgs.callPackage ./codex-plugin-cc {};
   onscripter-yuri = pkgs.callPackage ./onscripter-yuri {};
   pdfcropmargins = pkgs.callPackage ./pdfcropmargins {popplerUtils = pkgs.poppler-utils;};
   scripts = pkgs.callPackage ./scripts {};
