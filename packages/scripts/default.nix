@@ -8,19 +8,32 @@
   getopt,
   git,
   hostname,
+  python3,
+  rsync,
   unzip,
 }: let
-  scripts = {
+  shellScripts = {
     extract-and-strip = [arxiv-latex-cleaner coreutils findutils getopt unzip];
     git-prune-local = [git];
     rcode = [coreutils hostname];
   };
-  mkScript = name: runtimeInputs:
+  pythonScripts = {
+    remote = [rsync];
+  };
+  mkShellScript = name: runtimeInputs:
     writeShellApplication {
       inherit name runtimeInputs;
       text = builtins.readFile (./. + "/${name}.sh");
     };
-  individual = lib.mapAttrs mkScript scripts;
+  mkPythonScript = name: runtimeInputs:
+    writeShellApplication {
+      inherit name;
+      runtimeInputs = runtimeInputs ++ [python3];
+      text = ''exec python3 ${./. + "/${name}.py"} "$@"'';
+    };
+  individual =
+    lib.mapAttrs mkShellScript shellScripts
+    // lib.mapAttrs mkPythonScript pythonScripts;
 in
   symlinkJoin {
     name = "scripts";
