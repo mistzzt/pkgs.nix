@@ -5,6 +5,7 @@
   codex-plugin-cc = pkgs.callPackage ./codex-plugin-cc {};
   onscripter-yuri = pkgs.callPackage ./onscripter-yuri {};
   pdfcropmargins = pkgs.callPackage ./pdfcropmargins {popplerUtils = pkgs.poppler-utils;};
+  personal-skills = pkgs.callPackage ./personal-skills {};
   scripts = pkgs.callPackage ./scripts {};
   superpowers-skills = pkgs.callPackage ./superpowers-skills {};
 }

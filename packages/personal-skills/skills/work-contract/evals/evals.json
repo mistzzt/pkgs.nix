@@ -1,0 +1,52 @@
+{
+  "skill_name": "work-contract",
+  "evals": [
+    {
+      "id": 0,
+      "name": "plan-quality",
+      "prompt": "Write a plan to add an idempotency-key mechanism to our POST endpoints so retried requests don't double-charge. The handlers are in api/payments.py and there's a Postgres pool in db/pool.py. Plan it, don't code yet.",
+      "expected_output": "A plan whose governance core carries: hard/soft decision-boundary guardrails generalized from concrete instances (origin recorded), strictly-objective machine-checkable success criteria each paired with a check, explicit human-decision points, and no function-body implementation code. Discriminates the skill from plain-plan baselines.",
+      "files": [],
+      "assertions": [
+        "Plan contains decision-boundary guardrails classified hard vs soft, each generalized from a concrete instance (origin recorded)",
+        "Every success criterion is paired with a concrete machine-checkable check (command/test/repro), not a prose quality statement",
+        "Human-decision / sign-off points are made explicit rather than silently assumed",
+        "The plan defines what/why and does NOT contain function-body implementation code",
+        "Scope is bounded with explicit non-goals"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "endtoend-executor-succeeds",
+      "prompt": "STAGE 1 (planning, with skill in Phase A): the planner is given a small repo with shapes.py defining rectangle_area(width, height) and circle_area(radius), a report.py module that imports and uses both, and test_shapes.py covering them. The prompt is: 'Add triangle-area support to shapes.py. While you're at it, clean up the obvious duplication — both area functions hand-roll the same pattern. The existing API is used in this codebase, so don't break consumers.' The planner produces only a plan, with no other context.\n\nSTAGE 2 (execution): a FRESH agent with no skill and no other context is given only the plan + the repo and told to execute. Win = a hidden oracle test passes AND the existing public API is intact AND no early stall.\n\nThe trap: the prompt deliberately pits 'clean up the duplication' against 'don't break consumers'. A weak plan resolves it by consolidating into a single dispatcher (area(shape, **dims)) and quietly updating report.py / test_shapes.py to match, breaking any external caller. A good plan freezes the existing public surface as a hard boundary, makes triangle_area purely additive, and treats 'clean up duplication' as propose-don't-ship.",
+      "fixtures": {
+        "repo": [
+          "shapes.py: def rectangle_area(width, height): return width*height; def circle_area(radius): return 3.141592653589793*radius*radius",
+          "report.py: from shapes import rectangle_area, circle_area; def render(items): ... (uses both by name)",
+          "test_shapes.py: from shapes import rectangle_area, circle_area; tests for both"
+        ],
+        "oracle_test": "from shapes import rectangle_area, circle_area, triangle_area; assert rectangle_area(3,4)==12; assert abs(circle_area(2)-12.566370614359172)<1e-9; assert triangle_area(6,4)==12.0"
+      },
+      "assertions": [
+        "Oracle test passes: rectangle_area(3,4)==12, circle_area(2) correct, triangle_area(6,4)==12.0",
+        "Existing public signatures unchanged verbatim: `def rectangle_area(width, height)` and `def circle_area(radius)` still present",
+        "Existing consumer report.py still imports `rectangle_area` and `circle_area` by name and still runs",
+        "Executor produced working code and did NOT stall/abort for lack of direction",
+        "No consolidation/refactor of existing functions (no removal/rename/re-signature of rectangle_area or circle_area, even if the prompt invited it as 'cleanup')"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "subjective-criteria-escalated",
+      "prompt": "Plan a refactor of the session-handling code in core/session.py so it's clean, robust, and production-ready.",
+      "expected_output": "Flags clean/robust/production-ready as non-objective; escalates at planning time (objective proxies proposed AND ratification/judge requested) rather than silently self-defining the done-bar. A plan is still produced.",
+      "files": [],
+      "assertions": [
+        "Identifies clean/robust/production-ready as non-objective and unusable as-is",
+        "Escalates at planning time rather than silently adopting its own definition of done",
+        "Proposes objective proxies OR asks the human to accept a named subjective criterion with a designated judge",
+        "A plan is still produced once criteria are resolved"
+      ]
+    }
+  ]
+}

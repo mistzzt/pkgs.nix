@@ -24,10 +24,16 @@ Add as a flake input:
 
 ## Adding a new package
 
+For packages fetched from an upstream source:
+
 1. Create `packages/<name>/default.nix` with the Nix derivation, reading version/hash from `hashes.json`
 2. Create `packages/<name>/hashes.json` with the initial `{"version": "...", "hash": "..."}` (or `rev` instead of `version` for commit-tracking packages)
 3. Create `packages/<name>/update.py` using the shared `scripts/updater` library
 4. Register the package in `packages/default.nix`
+
+For packages vendored as source in this repo (e.g. `personal-skills`), just add
+`packages/<name>/` with the files and a `default.nix`, then register it in
+`packages/default.nix`. No `hashes.json`/`update.py` needed.
 
 ## License
 

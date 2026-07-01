@@ -1,0 +1,3 @@
+display_name: Artifact Eval Collaborator
+short_description: Collaboratively run staged AEC review with exhaustive post-KTT full-evaluation command tracking.
+default_prompt: Help me evaluate this research artifact using stage gates, generate a full-evaluation runbook from the artifact docs, and draft the review in my style.
