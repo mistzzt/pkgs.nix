@@ -1,0 +1,43 @@
+# Copy this file to `.remote.toml` (gitignored) at the repo root and edit it
+# for your machine:
+#
+#   cp <this skill dir>/.remote.toml.example .remote.toml
+#
+# `host` is an SSH ALIAS, not an IP. Define the alias in your own
+# ~/.ssh/config so this file (and the repo) stays machine-agnostic:
+#
+#   Host gpu-box                 # <- the alias you put in `host` below
+#       HostName 10.0.0.42       # your machine's IP / DNS
+#       User ubuntu
+#       IdentityFile ~/.ssh/id_ed25519
+#
+# Then `remote sync` runs `rsync ... gpu-box:<dest>/` and `remote task test`
+# runs `ssh gpu-box ...` — SSH resolves the alias to the real host. The repo
+# never hardcodes anyone's hostname.
+
+default = "gpu-box"
+
+[tasks]                     # shared across all hosts; per-host tasks override on collision
+test = "uv run pytest"
+bench = "uv run python benchmarks/run.py"
+
+[hosts.gpu-box]
+host = "gpu-box"            # <- your ~/.ssh/config alias for the remote machine
+dest = "projects/myrepo"   # path on the remote (relative to $HOME)
+post_sync = "uv sync"      # runs after rsync, before your command
+# The built-in defaults (.git/, .venv/, __pycache__/, caches, *.pyc) always
+# apply; anything here extends them. `includes` win over `excludes`.
+includes = ["out/winners/***"]
+excludes = ["data/", "*.ckpt", "out/***"]
+
+[hosts.gpu-box.tasks]
+train = "uv run train.py"
+
+# Add more machines as extra [hosts.*] entries and select with `remote -c <name>`:
+#
+# [hosts.big-box]
+# host = "big-box"
+# dest = "projects/myrepo"
+# post_sync = "uv sync"
+# [hosts.big-box.tasks]
+# train = "uv run train.py"
