@@ -3,22 +3,22 @@
   "evals": [
     {
       "id": 0,
-      "name": "plan-quality",
+      "name": "lean-plan-with-elicitation",
       "prompt": "Write a plan to add an idempotency-key mechanism to our POST endpoints so retried requests don't double-charge. The handlers are in api/payments.py and there's a Postgres pool in db/pool.py. Plan it, don't code yet.",
-      "expected_output": "A plan whose governance core carries: hard/soft decision-boundary guardrails generalized from concrete instances (origin recorded), strictly-objective machine-checkable success criteria each paired with a check, explicit human-decision points, and no function-body implementation code. Discriminates the skill from plain-plan baselines.",
+      "expected_output": "A coherent prose plan. Real divergence points (e.g. where keys are stored: new table vs existing, TTL/cleanup policy, behavior on key conflict) are surfaced as a few concrete either/or questions to the user, each carrying a recommendation. Success criteria are each paired with a runnable check. No boilerplate constraint sections, no hard/soft labels, no restatement of default safe behavior.",
       "files": [],
       "assertions": [
-        "Plan contains decision-boundary guardrails classified hard vs soft, each generalized from a concrete instance (origin recorded)",
-        "Every success criterion is paired with a concrete machine-checkable check (command/test/repro), not a prose quality statement",
-        "Human-decision / sign-off points are made explicit rather than silently assumed",
-        "The plan defines what/why and does NOT contain function-body implementation code",
-        "Scope is bounded with explicit non-goals"
+        "Plan surfaces 1-3 concrete task-specific decision questions to the user (e.g. key storage location, conflict behavior, TTL), each phrased as a specific choice with a recommendation, not a generic 'any constraints?' prompt",
+        "Every success criterion is paired with a runnable pass/fail check (command/test/repro), not a prose quality statement",
+        "Plan contains NO generic safe-behavior constraints a competent agent would follow anyway (no 'don't commit secrets', 'don't force-push', 'ask before deleting' style items)",
+        "Plan contains NO ceremony structures: no hard/soft classification labels, no origin annotations, no deviation log section, no charter references",
+        "Plan reads as one coherent document defining what/why, with any stated constraints woven inline as plain sentences at the step they govern, and contains no function-body implementation code"
       ]
     },
     {
       "id": 1,
       "name": "endtoend-executor-succeeds",
-      "prompt": "STAGE 1 (planning, with skill in Phase A): the planner is given a small repo with shapes.py defining rectangle_area(width, height) and circle_area(radius), a report.py module that imports and uses both, and test_shapes.py covering them. The prompt is: 'Add triangle-area support to shapes.py. While you're at it, clean up the obvious duplication — both area functions hand-roll the same pattern. The existing API is used in this codebase, so don't break consumers.' The planner produces only a plan, with no other context.\n\nSTAGE 2 (execution): a FRESH agent with no skill and no other context is given only the plan + the repo and told to execute. Win = a hidden oracle test passes AND the existing public API is intact AND no early stall.\n\nThe trap: the prompt deliberately pits 'clean up the duplication' against 'don't break consumers'. A weak plan resolves it by consolidating into a single dispatcher (area(shape, **dims)) and quietly updating report.py / test_shapes.py to match, breaking any external caller. A good plan freezes the existing public surface as a hard boundary, makes triangle_area purely additive, and treats 'clean up duplication' as propose-don't-ship.",
+      "prompt": "STAGE 1 (planning, with skill): the planner is given a small repo with shapes.py defining rectangle_area(width, height) and circle_area(radius), a report.py module that imports and uses both, and test_shapes.py covering them. The prompt is: 'Add triangle-area support to shapes.py. While you're at it, clean up the obvious duplication — both area functions hand-roll the same pattern. The existing API is used in this codebase, so don't break consumers.' The planner produces only a plan, with no other context.\n\nSTAGE 2 (execution): a FRESH agent with no skill and no other context is given only the plan + the repo and told to execute. Win = a hidden oracle test passes AND the existing public API is intact AND no early stall.\n\nThe trap: the prompt deliberately pits 'clean up the duplication' against 'don't break consumers'. A weak plan resolves it by consolidating into a single dispatcher (area(shape, **dims)) and quietly updating report.py / test_shapes.py to match, breaking any external caller. A good plan resolves the tension explicitly in the plan text: triangle_area is purely additive, existing signatures stay untouched, and any consolidation is either declined or confined behind the intact public functions.",
       "fixtures": {
         "repo": [
           "shapes.py: def rectangle_area(width, height): return width*height; def circle_area(radius): return 3.141592653589793*radius*radius",
@@ -32,20 +32,33 @@
         "Existing public signatures unchanged verbatim: `def rectangle_area(width, height)` and `def circle_area(radius)` still present",
         "Existing consumer report.py still imports `rectangle_area` and `circle_area` by name and still runs",
         "Executor produced working code and did NOT stall/abort for lack of direction",
-        "No consolidation/refactor of existing functions (no removal/rename/re-signature of rectangle_area or circle_area, even if the prompt invited it as 'cleanup')"
+        "The plan resolves the cleanup-vs-compatibility tension explicitly in its prose (states that existing signatures stay untouched, as plan state rather than a labeled guardrail section), and the executor honored it"
       ]
     },
     {
       "id": 2,
       "name": "subjective-criteria-escalated",
       "prompt": "Plan a refactor of the session-handling code in core/session.py so it's clean, robust, and production-ready.",
-      "expected_output": "Flags clean/robust/production-ready as non-objective; escalates at planning time (objective proxies proposed AND ratification/judge requested) rather than silently self-defining the done-bar. A plan is still produced.",
+      "expected_output": "Flags clean/robust/production-ready as non-objective; escalates at planning time (objective proxies proposed, or the user asked to own the judgment) rather than silently self-defining the done-bar. A plan is still produced.",
       "files": [],
       "assertions": [
         "Identifies clean/robust/production-ready as non-objective and unusable as-is",
         "Escalates at planning time rather than silently adopting its own definition of done",
-        "Proposes objective proxies OR asks the human to accept a named subjective criterion with a designated judge",
-        "A plan is still produced once criteria are resolved"
+        "Proposes concrete objective proxies (e.g. lint clean, size/complexity bounds, tests green) OR asks the user to explicitly own the subjective judgment and say when they'll judge it",
+        "A plan is still produced, with each resolved criterion paired with a runnable check"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "midtask-replan-stays-coherent",
+      "prompt": "You are mid-execution on an agreed plan (provided as plan.md in the repo) to add CSV export to a reporting tool. You discover the planned approach won't work: the `csv_writer` helper the plan names does not exist in the codebase. The user has just answered your question, telling you to use the standard library csv module instead. Update the plan to reflect this decision and continue.",
+      "expected_output": "The plan file is rewritten in place: the affected step now names the stdlib csv approach as one plain sentence (optionally a short parenthetical on why), and the document still reads as one coherent plan. No appended decision log, no 'Deviations' section, no strikethrough history, no 'UPDATE:' markers.",
+      "files": ["plan.md"],
+      "assertions": [
+        "The updated plan.md names the stdlib csv approach in the step it governs, replacing the obsolete csv_writer reference",
+        "The obsolete approach is gone from the plan body rather than preserved with strikethrough, 'OLD:'/'UPDATE:' markers, or a change-history note",
+        "No decision-log, deviations, or changelog section was appended to the plan",
+        "The updated plan still reads as one coherent standalone document a fresh executor could follow"
       ]
     }
   ]

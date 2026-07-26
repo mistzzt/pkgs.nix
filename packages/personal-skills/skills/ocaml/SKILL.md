@@ -1,6 +1,6 @@
 ---
 name: ocaml
-description: Any OCaml development in this repo (implementation, refactors, dune, tests, logging). Prefer the Jane Street stack (Core/Async + ppx_jane) when available.
+description: OCaml development. Use whenever the task involves OCaml source (.ml/.mli files), dune builds (dune, dune-project files), or the user mentions OCaml, dune, opam, Core/Async, or ppx. Covers implementation, refactoring, expect tests, logging, and dune configuration in OCaml projects. Do NOT use when the codebase is another language (Python, Rust, etc.), even if the task involves generic activities like tests, refactors, or logging.
 ---
 
 # OCaml Guide
