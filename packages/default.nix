@@ -7,5 +7,6 @@
   pdfcropmargins = pkgs.callPackage ./pdfcropmargins {popplerUtils = pkgs.poppler-utils;};
   personal-skills = pkgs.callPackage ./personal-skills {};
   scripts = pkgs.callPackage ./scripts {};
+  simple-english-skills = pkgs.callPackage ./simple-english-skills {};
   superpowers-skills = pkgs.callPackage ./superpowers-skills {};
 }
