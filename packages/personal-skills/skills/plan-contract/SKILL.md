@@ -1,5 +1,5 @@
 ---
-name: work-contract
+name: plan-contract
 description: >-
   Plan-writing discipline for non-trivial work. Trigger when the user asks to
   plan, brainstorm, spec, or scope work, starts a larger project, or kicks off
@@ -7,7 +7,7 @@ description: >-
   when the plan must change.
 ---
 
-# Work Contract
+# Plan Contract
 
 A plan is complete when it carries exactly two things an executor cannot derive on its own: the few task-specific constraints this user actually cares about, and a machine-checkable definition of done. Everything else buries them.
 
