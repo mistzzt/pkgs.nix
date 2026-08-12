@@ -1,0 +1,413 @@
+#!/usr/bin/env python3
+
+import argparse
+from bisect import bisect_left
+from dataclasses import dataclass
+import json
+import math
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+
+
+DEDUP_THUMB_DIM = 16
+DEDUP_MEAN_DELTA = 2.0
+TIMESTAMP_EPSILON = 1e-6
+
+PTS_RE = re.compile(r"\bpts_time:([0-9]+(?:\.[0-9]+)?)\b")
+SCORE_RE = re.compile(
+    r"\b(?:lavfi\.)?scene_score(?::|=)([0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)\b"
+)
+
+
+@dataclass(frozen=True)
+class Candidate:
+    timestamp_seconds: float
+    scene_score: float | None
+    source: str = "scene"
+
+
+class FfmpegError(RuntimeError):
+    def __init__(self, stderr: str):
+        super().__init__("ffmpeg failed")
+        self.stderr = stderr
+
+
+class Runner:
+    """Runs ffmpeg/ffprobe and counts every invocation for the sidecar."""
+
+    def __init__(self):
+        self.count = 0
+
+    def run(
+        self,
+        program: str,
+        args: list[str],
+        binary: bool = False,
+        input_bytes: bytes | None = None,
+    ):
+        if shutil.which(program) is None:
+            raise FileNotFoundError(program)
+
+        self.count += 1
+        completed = subprocess.run(
+            [program, *args],
+            text=not binary,
+            input=input_bytes,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if completed.returncode != 0:
+            stderr = completed.stderr
+            if isinstance(stderr, bytes):
+                stderr = stderr.decode(errors="replace")
+            raise FfmpegError(stderr)
+        return completed
+
+
+def positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be at least 1")
+    return parsed
+
+
+def positive_float(value: str) -> float:
+    parsed = float(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be positive")
+    return parsed
+
+
+def threshold_float(value: str) -> float:
+    parsed = float(value)
+    if parsed < 0 or parsed > 1:
+        raise argparse.ArgumentTypeError("must be between 0 and 1")
+    return parsed
+
+
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(
+        prog="extract-keyframes",
+        description="Extract scene-change keyframes from an MP4 video.",
+    )
+    parser.add_argument("input", type=Path, help="input MP4 path")
+    parser.add_argument("-o", "--out-dir", required=True, type=Path)
+    parser.add_argument("--scene-threshold", type=threshold_float, default=0.005)
+    parser.add_argument("--max-dim", type=positive_int, default=1024)
+    parser.add_argument("--quality", type=positive_int, default=3)
+    parser.add_argument("--max-frames", type=positive_int, default=100)
+    parser.add_argument("--max-gap", type=positive_float, default=10.0)
+    parser.add_argument("--no-dedup", action="store_true")
+    parser.add_argument("-v", "--verbose", action="store_true")
+    return parser.parse_args(argv)
+
+
+def probe_duration(runner: Runner, input_path: Path) -> float:
+    completed = runner.run(
+        "ffprobe",
+        ["-v", "error", "-print_format", "json", "-show_format", str(input_path)],
+    )
+    try:
+        duration = float(json.loads(completed.stdout)["format"]["duration"])
+    except (KeyError, TypeError, ValueError):
+        raise FfmpegError("ffprobe reported no duration for the input video")
+    if duration <= 0:
+        raise FfmpegError("input video has non-positive duration")
+    return duration
+
+
+def parse_candidates_from_metadata(log: str) -> list[Candidate]:
+    candidates = []
+    pending_timestamp = None
+
+    for line in log.splitlines():
+        pts_match = PTS_RE.search(line)
+        if pts_match:
+            pending_timestamp = float(pts_match.group(1))
+
+        score_match = SCORE_RE.search(line)
+        if score_match and pending_timestamp is not None:
+            candidates.append(
+                Candidate(
+                    timestamp_seconds=pending_timestamp,
+                    scene_score=float(score_match.group(1)),
+                )
+            )
+            pending_timestamp = None
+
+    return candidates
+
+
+def detect_candidates(
+    runner: Runner, input_path: Path, threshold: float
+) -> list[Candidate]:
+    vf = f"select='gt(scene,{threshold})',metadata=print"
+    completed = runner.run(
+        "ffmpeg", ["-i", str(input_path), "-vf", vf, "-an", "-f", "null", "-"]
+    )
+    return parse_candidates_from_metadata(completed.stderr)
+
+
+def select_scene_candidates(
+    candidates: list[Candidate], budget: int
+) -> list[Candidate]:
+    """Keep every candidate when they fit the budget; evict lowest scores first otherwise."""
+    ranked = sorted(candidates, key=lambda c: (-c.scene_score, c.timestamp_seconds))
+    return sorted(ranked[: max(budget, 0)], key=lambda c: c.timestamp_seconds)
+
+
+def fill_gap_timestamps(
+    timestamps: list[float], duration: float, max_gap: float, budget: int
+) -> list[float]:
+    """Evenly fill stretches longer than max_gap (largest first) within the budget."""
+    bounds = [*timestamps, duration]
+    gaps = [
+        (end - start, start)
+        for start, end in zip(bounds, bounds[1:])
+        if end - start > max_gap
+    ]
+
+    fills = []
+    for length, start in sorted(gaps, key=lambda g: (-g[0], g[1])):
+        if budget <= 0:
+            break
+        needed = math.ceil(length / max_gap - TIMESTAMP_EPSILON) - 1
+        count = min(needed, budget)
+        budget -= count
+        fills.extend(start + (j + 1) * length / (count + 1) for j in range(count))
+
+    return sorted(fills)
+
+
+def frame_filename(timestamp_seconds: float) -> str:
+    total_ms = int(round(timestamp_seconds * 1000))
+    minutes = total_ms // 60_000
+    seconds = (total_ms % 60_000) // 1000
+    millis = total_ms % 1000
+    return f"frame_{minutes:02d}-{seconds:02d}-{millis:03d}.jpg"
+
+
+def build_select_expr(timestamps: list[float]) -> str:
+    return "+".join(
+        f"(isnan(prev_t)+lt(prev_t,{ts:.6f}))*gte(t,{ts:.6f})" for ts in timestamps
+    )
+
+
+def match_targets(
+    selection: list[Candidate], pts_list: list[float]
+) -> list[tuple[Candidate, int]]:
+    """Map each target to the first extracted frame at or after it; drop misses/merges."""
+    matched = []
+    prev_index = -1
+    for candidate in selection:
+        index = bisect_left(pts_list, candidate.timestamp_seconds - TIMESTAMP_EPSILON)
+        if index >= len(pts_list) or index == prev_index:
+            continue
+        prev_index = index
+        matched.append((candidate, index))
+    return matched
+
+
+def extract_frames(
+    runner: Runner,
+    input_path: Path,
+    selection: list[Candidate],
+    max_dim: int,
+    quality: int,
+    out_dir: Path,
+) -> list[Candidate]:
+    scale = (
+        f"scale='min({max_dim},iw)':'min({max_dim},ih)':"
+        "force_original_aspect_ratio=decrease"
+    )
+    expr = build_select_expr([c.timestamp_seconds for c in selection])
+    tmp_dir = Path(tempfile.mkdtemp(prefix=".extract-", dir=out_dir))
+    try:
+        completed = runner.run(
+            "ffmpeg",
+            [
+                "-y",
+                "-i",
+                str(input_path),
+                "-vf",
+                f"select='{expr}',showinfo,{scale}",
+                "-fps_mode",
+                "vfr",
+                "-an",
+                "-pix_fmt",
+                "yuvj420p",
+                "-q:v",
+                str(quality),
+                str(tmp_dir / "%06d.jpg"),
+            ],
+        )
+        pts_list = [float(m.group(1)) for m in PTS_RE.finditer(completed.stderr)]
+        files = sorted(tmp_dir.glob("*.jpg"))
+        if len(files) != len(pts_list):
+            raise FfmpegError(
+                f"extraction wrote {len(files)} frames but reported "
+                f"{len(pts_list)} timestamps"
+            )
+
+        extracted = []
+        for candidate, index in match_targets(selection, pts_list):
+            files[index].replace(
+                out_dir / frame_filename(candidate.timestamp_seconds)
+            )
+            extracted.append(candidate)
+        return extracted
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def dedup_drop_indices(thumbs: list[bytes]) -> list[int]:
+    drops = []
+    last_kept = thumbs[0]
+    for index, thumb in enumerate(thumbs[1:], start=1):
+        delta = sum(abs(a - b) for a, b in zip(last_kept, thumb)) / len(thumb)
+        if delta <= DEDUP_MEAN_DELTA:
+            drops.append(index)
+        else:
+            last_kept = thumb
+    return drops
+
+
+def dedup_frames(
+    runner: Runner, out_dir: Path, frames: list[Candidate]
+) -> tuple[list[Candidate], int]:
+    """Drop near-duplicate frames via one thumbnail pass; fails open on any error."""
+    try:
+        # Concatenated JPEGs form a valid raw MJPEG stream, so one piped pass decodes all.
+        jpeg_stream = b"".join(
+            (out_dir / frame_filename(frame.timestamp_seconds)).read_bytes()
+            for frame in frames
+        )
+        completed = runner.run(
+            "ffmpeg",
+            [
+                "-f",
+                "mjpeg",
+                "-i",
+                "-",
+                "-vf",
+                f"scale={DEDUP_THUMB_DIM}:{DEDUP_THUMB_DIM},format=gray",
+                "-f",
+                "rawvideo",
+                "-",
+            ],
+            binary=True,
+            input_bytes=jpeg_stream,
+        )
+
+        thumb_bytes = DEDUP_THUMB_DIM * DEDUP_THUMB_DIM
+        data = completed.stdout
+        if len(data) != thumb_bytes * len(frames):
+            raise FfmpegError("thumbnail pass returned unexpected byte count")
+
+        thumbs = [
+            data[i * thumb_bytes : (i + 1) * thumb_bytes] for i in range(len(frames))
+        ]
+        drops = set(dedup_drop_indices(thumbs))
+        for index in drops:
+            (out_dir / frame_filename(frames[index].timestamp_seconds)).unlink(
+                missing_ok=True
+            )
+        kept = [frame for i, frame in enumerate(frames) if i not in drops]
+        return kept, len(drops)
+    except Exception:
+        return frames, 0
+
+
+def write_sidecar(out_dir: Path, meta: dict, frames: list[Candidate]) -> None:
+    payload = {
+        "meta": meta,
+        "frames": [
+            {
+                "filename": frame_filename(frame.timestamp_seconds),
+                "timestamp_seconds": frame.timestamp_seconds,
+                "scene_score": frame.scene_score,
+                "source": frame.source,
+            }
+            for frame in frames
+        ],
+    }
+    (out_dir / "frames.json").write_text(json.dumps(payload, indent=2) + "\n")
+
+
+def main(argv=None) -> int:
+    args = parse_args(argv)
+    runner = Runner()
+
+    try:
+        duration = probe_duration(runner, args.input)
+        candidates = detect_candidates(runner, args.input, args.scene_threshold)
+
+        usable = [c for c in candidates if 0.0 < c.timestamp_seconds < duration]
+        selection = [
+            Candidate(timestamp_seconds=0.0, scene_score=None, source="pinned"),
+            *select_scene_candidates(usable, args.max_frames - 1),
+        ]
+        fills = fill_gap_timestamps(
+            [c.timestamp_seconds for c in selection],
+            duration,
+            args.max_gap,
+            args.max_frames - len(selection),
+        )
+        selection = sorted(
+            [
+                *selection,
+                *(
+                    Candidate(timestamp_seconds=ts, scene_score=None, source="fill")
+                    for ts in fills
+                ),
+            ],
+            key=lambda c: c.timestamp_seconds,
+        )
+
+        args.out_dir.mkdir(parents=True, exist_ok=True)
+        extracted = extract_frames(
+            runner, args.input, selection, args.max_dim, args.quality, args.out_dir
+        )
+        if not extracted:
+            print("ffmpeg extracted no frames from the input", file=sys.stderr)
+            return 1
+
+        frames, dropped = extracted, 0
+        if not args.no_dedup and len(extracted) > 1:
+            frames, dropped = dedup_frames(runner, args.out_dir, extracted)
+
+        meta = {
+            "candidate_count": len(candidates),
+            "scene_count": sum(c.source == "scene" for c in extracted),
+            "fill_count": sum(c.source == "fill" for c in extracted),
+            "selected_count": len(extracted),
+            "deduped_count": dropped,
+            "subprocess_count": runner.count,
+        }
+        write_sidecar(args.out_dir, meta, frames)
+
+        if args.verbose:
+            print(
+                f"candidates={len(candidates)} scene={meta['scene_count']} "
+                f"fill={meta['fill_count']} deduped={dropped} kept={len(frames)}"
+            )
+
+        return 0
+    except FileNotFoundError as exc:
+        if str(exc) in ("ffmpeg", "ffprobe"):
+            print(f"{exc} not found in PATH", file=sys.stderr)
+        else:
+            print(str(exc), file=sys.stderr)
+        return 1
+    except FfmpegError as exc:
+        print(exc.stderr, file=sys.stderr, end="" if exc.stderr.endswith("\n") else "\n")
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -3,6 +3,7 @@
   claude-code-statusline = pkgs.callPackage ./claude-code-statusline {};
   cli-proxy-api-management-center = pkgs.callPackage ./cli-proxy-api-management-center {};
   codex-plugin-cc = pkgs.callPackage ./codex-plugin-cc {};
+  extract-keyframes = pkgs.callPackage ./extract-keyframes {};
   onscripter-yuri = pkgs.callPackage ./onscripter-yuri {};
   pdfcropmargins = pkgs.callPackage ./pdfcropmargins {popplerUtils = pkgs.poppler-utils;};
   personal-skills = pkgs.callPackage ./personal-skills {};
