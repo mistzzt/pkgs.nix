@@ -1,111 +1,96 @@
 ---
 name: run-on-remote
-description: Sync the current repo to a remote host (rsync over ssh) and run commands there. Use whenever the user asks to run, test, benchmark, compile, profile, or otherwise execute code on a remote machine — e.g. "run X on the remote", "test this on the build server", "benchmark on the GPU box", "see if this builds remotely". Driven by a `.remote.toml` at the repo root that names hosts, destinations, and optional named tasks.
+description: Sync the current repo to a remote host over ssh and run commands there, driven by `just` recipes checked into the repo. Use whenever the user asks to run, test, benchmark, compile, profile, or otherwise execute code on a remote machine, e.g. "run X on the remote", "test this on the build server", "see if this builds remotely". If the repo has no remote recipes yet, this skill sets them up together with the user.
 ---
 
 # Run code on a remote host
 
-Some repos can't be exercised on the local machine (no GPU, no special
-hardware, a heavier toolchain, etc.). Such a repo carries a `.remote.toml`
-describing one or more remote configs; this skill drives sync + ssh-and-run
-against them.
+Some repos can't be exercised on the local machine (missing hardware, a heavier toolchain). The remote workflow is two operations, `rsync` and `ssh`, wrapped in `just` recipes that live in the target repo. There is no bespoke driver to learn: list the recipes and run them.
 
-## .remote.toml schema
+## Step 1: do the recipes exist?
 
-```toml
-default = "gpu-box"            # optional; used when --config is omitted
+Run `just --list --list-submodules` from anywhere in the repo.
 
-[tasks]                        # optional shared tasks; available on every host
-test  = "uv run pytest"
-bench = "uv run python benchmarks/run.py"
+- Recipes named `sync` / `pull` / `on`, or a `remote` module: go to **Running**.
+- A justfile exists but has no remote recipes: go to **Setting up**, use module placement.
+- No justfile at all: go to **Setting up**.
+- `just` itself is not on PATH: stop and ask the user to install it. Don't work around it with hand-written rsync/ssh or a substitute script.
 
-[hosts.gpu-box]
-host = "gpu-box"               # ssh hostname or alias (from your ~/.ssh/config)
-dest = "projects/myrepo"       # path on the remote, relative to $HOME
-post_sync = "uv sync"          # optional; runs after rsync, before user command
-excludes = ["data/", "*.ckpt"] # optional; extends the built-in defaults
-includes = ["vendor/", "vendor/**"]  # optional; rsync --include patterns
+## Running
 
-[hosts.gpu-box.tasks]          # optional host-specific commands; override [tasks] on collision
-train = "uv run train.py"      # task args from CLI are appended
-```
-
-The built-in default excludes (`.git/`, `.venv/`, `__pycache__/`,
-`.mypy_cache/`, `.ruff_cache/`, `.pytest_cache/`, `*.pyc`) **always** apply; a
-`excludes` list extends them rather than replacing them, so you never have to
-re-list `.git/`. Use `includes` (emitted before excludes, first-match-wins) to
-whitelist something a broad exclude would otherwise drop, e.g.:
-
-```toml
-includes = ["out/winners/***"]
-excludes = ["out/***"]
-```
-
-## Driver
-
-The driver is the `remote` command, provided by this flake's `scripts` package
-(on PATH once that package is installed). Invoke it from anywhere inside the
-repo:
-
-```bash
-remote [-c CONFIG] <action> ...
-```
-
-Actions:
-
-| Action | Purpose |
+| Intent | Command |
 |---|---|
-| `info` | Print the resolved config and named tasks. Use this first if you don't already know what's defined. |
-| `sync` | rsync local→remote (mirror, with `--delete`). Pass extra rsync flags after `--` (e.g. `-- -n` for dry-run). |
-| `sync --pull` | rsync remote→local instead (newer-wins, **no** `--delete`): brings device-produced artifacts back without clobbering local edits. This is the back half of a round-trip: `sync` to push, run a task, `sync --pull` to retrieve outputs. |
-| `run -- <cmd...>` | Ssh and run an arbitrary command in `dest/`. Does **not** sync — run `sync` first if needed. |
-| `task <name> [args...]` | Run a named task from the config. Does **not** sync — run `sync` first if needed. Extra args are appended. |
+| Push local to remote | `just sync` |
+| Run a named task | whatever `--list` showed, e.g. `just test` |
+| Run an arbitrary command | `just on cargo build --release` |
+| Retrieve artifacts | `just pull out/ results.json` |
+| Use a different host | `REMOTE_HOST=otherhost just test` |
 
-`-c/--config` selects a host by its key in `[hosts.*]`; omit to use `default`.
+- **Sync first** when local edits are unsynced. The run recipes deliberately do not sync, so retrying after a remote-side failure doesn't re-upload the tree.
+- **Use a generous Bash timeout**, 300000 ms or more. Remote builds and benchmarks take minutes, and a short timeout looks exactly like a remote failure.
+- **Don't run remote-only commands locally.** A repo carrying these recipes is a strong signal the workload doesn't run here.
+- **Recipes are the repo's, not this skill's.** If one is wrong or missing, edit the justfile rather than falling back to hand-written rsync/ssh invocations.
 
-The `run` and `task` actions wrap the remote command as
-`cd <dest> && <post_sync> && <cmd>`, chained with `&&` so a post-sync failure
-aborts before the user command.
+## Setting up
 
-## Workflow
+Build the justfile **with** the user, not for them. Ask before writing:
 
-1. **Discover.** Run `info` once per session to see configs and tasks. If the user names a config (e.g. "run on gpu-box"), pass it as `-c gpu-box`. If they name a host that isn't in `.remote.toml`, surface that — don't invent values.
-2. **Pick the action.**
-   - User says "run task X" / X matches a task name → `sync` first (if local changes are unsynced), then `task X [args]`.
-   - User gives a free-form command → `sync` first (if local changes are unsynced), then `run -- <cmd>`.
-   - User just wants files pushed → `sync`.
-3. **Run with a generous timeout.** Remote builds, compilation, and benchmarks can take minutes — set the `Bash` timeout to ~300000 ms (5 min) or longer. A short default timeout will kill long-running jobs and look like a remote failure.
-4. **Don't run remote-only commands locally.** If a repo has a `.remote.toml`, that's a strong signal the workload doesn't run on the local machine. Trying it locally produces confusing errors.
+1. **Host.** The ssh alias from their `~/.ssh/config`. Only they can supply it: never guess, and never substitute an IP or a hostname found in the repo, because the alias is what keeps the checked-in justfile machine-agnostic. If ssh later fails to resolve it, the alias is missing from their ssh config; surface that rather than editing the justfile.
+2. **Destination.** The remote directory to sync into. Propose a default derived from the repo name, e.g. `src/<repo-name>`, and let them adjust.
+3. **Task scope.** Which named tasks to define and what each runs. Scan the repo's own tooling (pytest, cargo, make, npm) for candidates, then confirm the exact commands with the user instead of assuming.
+
+Then adapt this template with their answers:
+
+```just
+host := env("REMOTE_HOST", "<ssh-alias>")
+dest := "<remote-dir>"
+
+# Push, mirroring local onto the remote.
+sync:
+    rsync -avz --delete --exclude='.git/' --filter=':- .gitignore' {{justfile_directory()}}/ {{host}}:{{dest}}/
+
+# Fetch named artifacts back; newer-wins, never deletes.
+pull +paths:
+    rsync -avzuR {{ prepend(host + ":" + dest + "/./", paths) }} {{justfile_directory()}}/
+
+# `on`, not `run`: never collides with a local `run` recipe.
+on +cmd:
+    ssh {{host}} "cd {{dest}} && {{cmd}}"
+
+# One recipe per confirmed task, each delegating to `on`:
+# test: (on "cargo test")
+```
+
+**Placement.** No justfile: write the recipes as a new justfile at the repo root, no `remote.just` needed. Justfile already exists: put them in `remote.just` and add one line, `mod remote 'remote.just'`, so invocations become `just remote::sync` and a remote `test` can't collide with a local one.
+
+### The rsync flags, and why
+
+These are load-bearing. Reproduce them rather than improvising:
+
+- `--filter=':- .gitignore'` turns every nested `.gitignore` into exclude rules, replacing a hand-maintained exclude list. Caches, venvs, and build outputs are already listed there.
+- `--exclude='.git/'` is separate because `.git` is not gitignored. Drop it only if the remote needs git metadata.
+- `--delete` makes a push a mirror. Excluded files on the remote are protected from it, so the remote's own venvs and build outputs survive a sync instead of being deleted and rebuilt.
+- A gitignored payload the remote genuinely needs (vendored deps, generated data) takes an `--include='vendor/***'` placed **before** the filter. rsync rules are first-match-wins.
+- `pull` takes explicit paths, uses `-u`, and has no `--delete`. Artifacts are usually gitignored locally, so a tree-wide pull under the same filter would drop exactly what you were fetching.
+- `pull`'s `-R` plus the `/./` marker lands each path at its own relative position, and `prepend` puts the `host:dest` prefix on every path instead of only the first.
+
+## Multiple hosts
+
+`REMOTE_HOST=otherhost just test` works for a one-off run on a host that differs only by ssh alias. For hosts used repeatedly, or that need their own `dest`, give each a module under `.hosts/`:
+
+- `remote.just` holds the shared recipes plus `set allow-duplicate-variables := true`. If the recipes were living in the root justfile, move them into `remote.just` now: host modules can't import a file that declares their own `mod`.
+- `.hosts/<name>.just` does `import '../remote.just'` **first**, then its own `host` / `dest` assignments. Import must come first, because later definitions win.
+- The root justfile declares `mod <name> '.hosts/<name>.just'` per host, and may `import` one of them to make it the unprefixed default.
+
+Invocations become `just gpu::sync`, `just gpu::on nvidia-smi`. Without the duplicate-variables setting this fails with `variable dest has multiple definitions`.
 
 ## Reporting output
 
-Pass remote stdout/stderr through largely as-is. But:
-
-- Preserve summary lines and tracebacks verbatim — those are the primary signals.
-- Truncate noisy repetitive lines (e.g. hundreds of identical compiler progress messages) to head + tail.
-- Don't conflate remote-side errors with sync/ssh failures. If the rsync or ssh step itself failed, say so explicitly; otherwise the failure belongs to the remote command.
+- Preserve summary lines and tracebacks verbatim; truncate noisy repetition (hundreds of identical progress lines) to head plus tail.
+- Don't conflate a remote-side error with a sync or ssh failure. If rsync or ssh itself failed, say so explicitly; otherwise the failure belongs to the remote command.
 
 ## Gotchas
 
-- **Hostname resolution.** If ssh fails with "Could not resolve hostname", the `host` value is an alias missing from `~/.ssh/config`. Surface that — don't guess.
-- **rsync `--delete`.** A `sync` push mirrors local onto the remote, so anything not in the local repo (and not covered by `excludes`) gets removed on the remote. If the user has hand-edited files there, warn before syncing. Use `sync -- -n` for a dry run first when unsure.
-- **`vendor/` and other gitignored payloads.** If the remote needs files that are gitignored locally (vendored deps, generated artifacts), add an `includes = [...]` entry — excludes win otherwise.
-- **post_sync is per-config.** Use it for cheap idempotent setup (`uv sync`, `npm ci`), not heavy work — it runs on every `run` / `task` invocation as part of the remote command (not the rsync step), so it fires every time regardless of whether you synced.
-
-## When `.remote.toml` is missing
-
-`.remote.toml` is gitignored (it holds a machine-specific host), so a fresh
-clone won't have one even when the repo fully supports remote runs. Don't fall
-back to env vars or guess a hostname.
-
-This skill ships a template, `.remote.toml.example`, next to this file. It
-documents the schema and, importantly, that `host` is an **ssh alias** the user
-defines in their own `~/.ssh/config` (so the repo never hardcodes anyone's
-machine). Guide the user to set theirs up by copying the template shipped with
-this skill to `.remote.toml` at the repo root, then editing `host` to their
-`~/.ssh/config` alias and `dest` to the remote path.
-
-Walk them through it rather than silently writing one: the `host` alias and the
-`~/.ssh/config` entry behind it are things only they can supply. Offer to fill
-in the parts you *can* infer from the repo (`dest`, `post_sync`, `includes`/
-`excludes`) once they've named the host.
+- **`--delete` is destructive on the remote.** Anything not present locally and not excluded is removed there. If the user has hand-edited files on the remote, warn before syncing. Dry-run by running the rsync line directly with `-n` once.
+- **Anchor local paths on `{{justfile_directory()}}`, never `./`.** Submodule recipes run from the module file's directory, so under a `.hosts/` module `./` would silently sync `.hosts/` instead of the repo. `justfile_directory()` resolves to the root justfile's directory from anywhere; don't add `cd` to the recipes.
+- **`{{ }}` is just's interpolation, `$` reaches the shell.** Shell variables inside a recipe need no escaping, unlike make.

@@ -8,8 +8,6 @@
   getopt,
   git,
   hostname,
-  python3,
-  rsync,
   unzip,
 }: let
   shellScripts = {
@@ -17,23 +15,12 @@
     git-prune-local = [git];
     rcode = [coreutils hostname];
   };
-  pythonScripts = {
-    remote = [rsync];
-  };
   mkShellScript = name: runtimeInputs:
     writeShellApplication {
       inherit name runtimeInputs;
       text = builtins.readFile (./. + "/${name}.sh");
     };
-  mkPythonScript = name: runtimeInputs:
-    writeShellApplication {
-      inherit name;
-      runtimeInputs = runtimeInputs ++ [python3];
-      text = ''exec python3 ${./. + "/${name}.py"} "$@"'';
-    };
-  individual =
-    lib.mapAttrs mkShellScript shellScripts
-    // lib.mapAttrs mkPythonScript pythonScripts;
+  individual = lib.mapAttrs mkShellScript shellScripts;
 in
   symlinkJoin {
     name = "scripts";
