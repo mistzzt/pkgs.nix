@@ -47,11 +47,11 @@ dest := "<remote-dir>"
 
 # Push, mirroring local onto the remote.
 sync:
-    rsync -avz --delete --exclude='.git/' --filter=':- .gitignore' ./ {{host}}:{{dest}}/
+    rsync -avz --delete --exclude='.git/' --filter=':- .gitignore' {{justfile_directory()}}/ {{host}}:{{dest}}/
 
 # Fetch named artifacts back; newer-wins, never deletes.
 pull +paths:
-    rsync -avzuR {{ prepend(host + ":" + dest + "/./", paths) }} ./
+    rsync -avzuR {{ prepend(host + ":" + dest + "/./", paths) }} {{justfile_directory()}}/
 
 # `on`, not `run`: never collides with a local `run` recipe.
 on +cmd:
@@ -92,5 +92,5 @@ Invocations become `just gpu::sync`, `just gpu::on nvidia-smi`. Without the dupl
 ## Gotchas
 
 - **`--delete` is destructive on the remote.** Anything not present locally and not excluded is removed there. If the user has hand-edited files on the remote, warn before syncing. Dry-run by running the rsync line directly with `-n` once.
-- **`just` runs recipes from the justfile's directory**, so `./` in `sync` is the repo root regardless of your cwd. Don't add `cd` to the recipes.
+- **Anchor local paths on `{{justfile_directory()}}`, never `./`.** Submodule recipes run from the module file's directory, so under a `.hosts/` module `./` would silently sync `.hosts/` instead of the repo. `justfile_directory()` resolves to the root justfile's directory from anywhere; don't add `cd` to the recipes.
 - **`{{ }}` is just's interpolation, `$` reaches the shell.** Shell variables inside a recipe need no escaping, unlike make.
