@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Update script for herdr package (latest preview release, via nix-update)."""
+"""Update script for herdr-preview package via nix-update."""
 
 import subprocess
 from pathlib import Path
@@ -11,7 +11,7 @@ def main() -> None:
     subprocess.run(
         [
             "nix", "run", "nixpkgs#nix-update", "--",
-            "herdr",
+            "herdr-preview",
             "--flake",
             "--version=unstable",
             "--version-regex", "(preview-.*)",
