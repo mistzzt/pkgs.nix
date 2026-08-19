@@ -36,11 +36,19 @@ jobs:
             changed_files=$(git diff --name-only "$head^" "$head")
           fi
 
+          # Flake input changes affect every package, so rebuild all of them.
+          # PR-only: by merge time the same tree is already built and cached.
+          if [ "${{ github.event_name }}" = "pull_request" ] && echo "$changed_files" | grep -qE "^flake\.(nix|lock)$"; then
+            rebuild_all=true
+          else
+            rebuild_all=false
+          fi
+
           # Find changed package directories
           packages="[]"
           for dir in packages/*/; do
             pkg=$(basename "$dir")
-            if echo "$changed_files" | grep -q "^packages/${pkg}/"; then
+            if [ "$rebuild_all" = "true" ] || echo "$changed_files" | grep -q "^packages/${pkg}/"; then
               packages=$(echo "$packages" | jq -c --arg pkg "$pkg" '. + [$pkg]')
             fi
           done
@@ -52,7 +60,7 @@ jobs:
             if [ "$fname" = "default.nix" ]; then
               continue
             fi
-            if echo "$changed_files" | grep -q "^packages/${fname}$"; then
+            if [ "$rebuild_all" = "true" ] || echo "$changed_files" | grep -q "^packages/${fname}$"; then
               pkg="${fname%.nix}"
               packages=$(echo "$packages" | jq -c --arg pkg "$pkg" '. + [$pkg]')
             fi

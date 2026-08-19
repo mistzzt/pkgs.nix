@@ -92,7 +92,7 @@ jobs:
           if [ -f "packages/${pkg}/hashes.json" ]; then
             new_version=$(python3 -c "import json; d=json.load(open('packages/${pkg}/hashes.json')); print(d.get('version', d.get('rev', 'unknown')[:12]))")
           else
-            new_version="unknown"
+            new_version=$(nix eval --raw ".#${pkg}.version" 2>/dev/null || echo unknown)
           fi
 
           git add .
