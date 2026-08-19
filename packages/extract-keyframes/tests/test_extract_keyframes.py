@@ -132,6 +132,25 @@ class CliTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             self.mod.parse_args(["input.mp4", "-o", "frames", "--max-gap", "0"])
 
+    def test_max_frames_is_bounded_by_the_argv_ceiling(self):
+        limit = self.mod.MAX_FRAME_BUDGET
+        args = self.mod.parse_args(
+            ["input.mp4", "-o", "frames", "--max-frames", str(limit)]
+        )
+        self.assertEqual(args.max_frames, limit)
+
+        with self.assertRaises(SystemExit):
+            self.mod.parse_args(
+                ["input.mp4", "-o", "frames", "--max-frames", str(limit + 1)]
+            )
+
+    def test_expression_at_the_frame_budget_fits_in_one_argv_entry(self):
+        expr = self.mod.build_select_expr(
+            [i * 0.037 for i in range(self.mod.MAX_FRAME_BUDGET)]
+        )
+
+        self.assertLess(len(expr.encode()), 128 * 1024)
+
     def test_removed_density_flags_are_rejected(self):
         for flag in ("--min-spacing", "--max-per-min", "--min-frames"):
             with self.assertRaises(SystemExit):
@@ -144,6 +163,45 @@ class FilenameTests(unittest.TestCase):
 
     def test_formats_timestamp_as_zero_padded_minutes_seconds_millis(self):
         self.assertEqual(self.mod.frame_filename(65.9876), "frame_01-05-988.jpg")
+
+
+class SelectExprTests(unittest.TestCase):
+    def setUp(self):
+        self.mod = load_module()
+
+    def longest_plus_chain(self, expr):
+        depth, run, longest = 0, 1, 1
+        for char in expr:
+            if char == "(":
+                depth += 1
+            elif char == ")":
+                depth -= 1
+            elif char == "+" and depth == 0:
+                run += 1
+                longest = max(longest, run)
+        return longest
+
+    def test_short_lists_stay_a_flat_sum(self):
+        expr = self.mod.build_select_expr([0.0, 1.5])
+
+        self.assertEqual(
+            expr,
+            "gt(gte(t,0.000000)+gte(t,1.500000),"
+            "gte(prev_t,0.000000)+gte(prev_t,1.500000))",
+        )
+
+    def test_empty_target_list_yields_no_expression(self):
+        self.assertEqual(self.mod.build_select_expr([]), "")
+
+    def test_long_lists_are_grouped_below_the_ffmpeg_chain_limit(self):
+        for count in (100, 1000):
+            expr = self.mod.build_select_expr([i * 0.5 for i in range(count)])
+
+            self.assertEqual(expr.count("gte(t,"), count)
+            self.assertEqual(expr.count("gte(prev_t,"), count)
+            self.assertLessEqual(
+                self.longest_plus_chain(expr), self.mod.SELECT_EXPR_GROUP_SIZE
+            )
 
 
 class MatchTargetsTests(unittest.TestCase):

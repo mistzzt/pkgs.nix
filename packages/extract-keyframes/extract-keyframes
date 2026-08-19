@@ -16,6 +16,8 @@ import tempfile
 DEDUP_THUMB_DIM = 16
 DEDUP_MEAN_DELTA = 2.0
 TIMESTAMP_EPSILON = 1e-6
+SELECT_EXPR_GROUP_SIZE = 32
+MAX_FRAME_BUDGET = 2000
 
 PTS_RE = re.compile(r"\bpts_time:([0-9]+(?:\.[0-9]+)?)\b")
 SCORE_RE = re.compile(
@@ -76,6 +78,15 @@ def positive_int(value: str) -> int:
     return parsed
 
 
+def frame_budget_int(value: str) -> int:
+    """The select expression carries one term per frame, and the whole filtergraph
+    ships as a single argv entry capped at 128 KB by the kernel."""
+    parsed = positive_int(value)
+    if parsed > MAX_FRAME_BUDGET:
+        raise argparse.ArgumentTypeError(f"must be at most {MAX_FRAME_BUDGET}")
+    return parsed
+
+
 def positive_float(value: str) -> float:
     parsed = float(value)
     if parsed <= 0:
@@ -100,7 +111,7 @@ def parse_args(argv=None):
     parser.add_argument("--scene-threshold", type=threshold_float, default=0.005)
     parser.add_argument("--max-dim", type=positive_int, default=1024)
     parser.add_argument("--quality", type=positive_int, default=3)
-    parser.add_argument("--max-frames", type=positive_int, default=100)
+    parser.add_argument("--max-frames", type=frame_budget_int, default=100)
     parser.add_argument("--max-gap", type=positive_float, default=10.0)
     parser.add_argument("--no-dedup", action="store_true")
     parser.add_argument("-v", "--verbose", action="store_true")
@@ -192,10 +203,27 @@ def frame_filename(timestamp_seconds: float) -> str:
     return f"frame_{minutes:02d}-{seconds:02d}-{millis:03d}.jpg"
 
 
+def grouped_sum(terms: list[str]) -> str:
+    """Nest the sum into groups: ffmpeg's parser budgets ~101 for chain length plus
+    nesting depth, and a parenthesised group restarts the chain count."""
+    while len(terms) > SELECT_EXPR_GROUP_SIZE:
+        terms = [
+            "(" + "+".join(terms[i : i + SELECT_EXPR_GROUP_SIZE]) + ")"
+            for i in range(0, len(terms), SELECT_EXPR_GROUP_SIZE)
+        ]
+    return "+".join(terms)
+
+
 def build_select_expr(timestamps: list[float]) -> str:
-    return "+".join(
-        f"(isnan(prev_t)+lt(prev_t,{ts:.6f}))*gte(t,{ts:.6f})" for ts in timestamps
-    )
+    """Take a frame when it has passed more targets than its predecessor did.
+    prev_t is NAN on the first frame, so every gte is 0 and it has passed none."""
+    if not timestamps:
+        return ""
+
+    def passed(var: str) -> str:
+        return grouped_sum([f"gte({var},{ts:.6f})" for ts in timestamps])
+
+    return f"gt({passed('t')},{passed('prev_t')})"
 
 
 def match_targets(
