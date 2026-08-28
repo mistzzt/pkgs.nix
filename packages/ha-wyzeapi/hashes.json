@@ -1,4 +1,8 @@
 {
   "rev": "49b2d16ec09d6e73f0ede3b80de8fff0804d5b02",
-  "hash": "sha256-O4PE9Be/at2Nmql9Q6+3rx0jg33msEhBNTaS5veeCCY="
+  "hash": "sha256-O4PE9Be/at2Nmql9Q6+3rx0jg33msEhBNTaS5veeCCY=",
+  "wyzeapy": {
+    "version": "0.6.1",
+    "hash": "sha256-pyQIGS+p92gHVdoNaS3RIa1kZ7Ko3KbbTiXT6a2Z7xc="
+  }
 }

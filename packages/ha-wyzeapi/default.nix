@@ -7,14 +7,14 @@
 
   wyzeapy = python3Packages.buildPythonPackage rec {
     pname = "wyzeapy";
-    version = "0.6.1";
+    version = data.wyzeapy.version;
     pyproject = true;
 
     src = fetchFromGitHub {
       owner = "SecKatie";
       repo = "wyzeapy";
       tag = "v${version}";
-      hash = "sha256-pyQIGS+p92gHVdoNaS3RIa1kZ7Ko3KbbTiXT6a2Z7xc=";
+      hash = data.wyzeapy.hash;
     };
 
     build-system = with python3Packages; [hatchling];
