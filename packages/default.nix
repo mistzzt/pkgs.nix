@@ -5,7 +5,7 @@
   codex-plugin-cc = pkgs.callPackage ./codex-plugin-cc {};
   extract-keyframes = pkgs.callPackage ./extract-keyframes {};
   ha-wyzeapi = pkgs.callPackage ./ha-wyzeapi {inherit wyzeapy;};
-  herdr-preview = pkgs.callPackage ./herdr-preview {};
+  herdr-head = pkgs.callPackage ./herdr-head {};
   onscripter-yuri = pkgs.callPackage ./onscripter-yuri {};
   pdfcropmargins = pkgs.callPackage ./pdfcropmargins {popplerUtils = pkgs.poppler-utils;};
   personal-skills = pkgs.callPackage ./personal-skills {};
