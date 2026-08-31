@@ -17,11 +17,12 @@ A run ID is consumed the moment a launch is attempted, including a launch that r
 ## Start
 
 ```bash
-ssh <host> 'cd <dest> && bash -s -- start <run-id> "<command>"' \
-    < <skill-dir>/assets/nohup-job.sh
+cat <skill-dir>/assets/nohup-job.sh - <<'EOF' | ssh <host> 'cd <dest> && bash -s -- start <run-id>'
+<command>
+EOF
 ```
 
-The command travels as one string and runs remotely under `sh -c`, so pipelines and redirections work; it is recorded verbatim in the `command` file. Quote it by the one-off ssh rules in SKILL.md: the outer single quotes belong to ssh, the inner double quotes delimit the command.
+The command is not an ssh argument: it follows the script on stdin and is read there as raw bytes, so no shell on either side parses it. Quotes, `$`, backslashes, pipelines, redirections, and multiple lines need no escaping, and expansion happens exactly once, remotely under `sh -c` in the project directory. Keep the heredoc delimiter quoted (`<<'EOF'`) so the local shell also leaves the command alone. The command is recorded verbatim in the `command` file.
 
 On success the script confirms the detached wrapper signaled readiness and prints the run ID; report the ID so later ssh sessions can address the same job. On failure it prints which state the run ID is in; follow its instruction, which is a status check, never a blind relaunch.
 
@@ -34,7 +35,7 @@ ssh <host> 'cd <dest> && bash -s -- status <run-id>' \
     < <skill-dir>/assets/nohup-job.sh
 ```
 
-Three answers are possible: `finished, exit code N`, `apparently running (PID check only)`, and `unknown`. Treat the exit-code file as authoritative. The process disappearing without that file can mean a reboot, forced termination, or another failure that bypassed the wrapper. Do not report success in that state.
+Three job states are reported: `finished, exit code N`, `apparently running (PID check only)`, and `unknown`. A missing run directory is an error instead of a state and means the wrong directory, host, or run ID. Treat the exit-code file as authoritative. The process disappearing without that file can mean a reboot, forced termination, or another failure that bypassed the wrapper. Do not report success in that state.
 
 ## Read logs
 

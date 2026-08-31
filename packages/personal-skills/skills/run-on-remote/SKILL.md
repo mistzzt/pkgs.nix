@@ -1,6 +1,6 @@
 ---
 name: run-on-remote
-description: Sync the current repo, or a subtree of a monorepo, to a remote host over ssh and run commands there via `just` recipes checked into the repo. Use whenever the user asks to run, test, benchmark, compile, profile, or otherwise execute code on a remote machine, even if they never mention ssh, rsync, or just, e.g. "run X on the remote", "test this on the build server", "does this build on the workstation". Sets up the recipes with the user if the repo has none.
+description: Sync the current repo, or a subtree of a monorepo, to a remote host over ssh and run commands there via `just` recipes checked into the repo. Use whenever the user asks to run, test, benchmark, compile, profile, or otherwise execute code on a remote machine, even if they never mention ssh, rsync, or just, e.g. "run X on the remote", "test this on the build server", "does this build on the workstation". Also covers long unattended jobs (overnight builds, benchmarks, training runs) launched detached and checked on later. Sets up the recipes with the user if the repo has none.
 ---
 
 # Run code on a remote host
