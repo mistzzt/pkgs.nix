@@ -4,7 +4,7 @@
   cli-proxy-api-management-center = pkgs.callPackage ./cli-proxy-api-management-center {};
   codex-plugin-cc = pkgs.callPackage ./codex-plugin-cc {};
   extract-keyframes = pkgs.callPackage ./extract-keyframes {};
-  ha-wyzeapi = pkgs.callPackage ./ha-wyzeapi {inherit wyzeapy;};
+  ha-wyzeapi = pkgs.callPackage ./ha-wyzeapi {};
   herdr-head = pkgs.callPackage ./herdr-head {};
   onscripter-yuri = pkgs.callPackage ./onscripter-yuri {};
   pdfcropmargins = pkgs.callPackage ./pdfcropmargins {popplerUtils = pkgs.poppler-utils;};
@@ -12,5 +12,5 @@
   scripts = pkgs.callPackage ./scripts {};
   simple-english-skills = pkgs.callPackage ./simple-english-skills {};
   superpowers-skills = pkgs.callPackage ./superpowers-skills {};
-  wyzeapy = pkgs.callPackage ./wyzeapy {};
+  wyzeapy = pkgs.python3Packages.callPackage ./wyzeapy {};
 }

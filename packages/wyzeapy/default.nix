@@ -1,8 +1,13 @@
 {
-  python3Packages,
+  aiodns,
+  aiohttp,
+  buildPythonPackage,
+  certifi,
   fetchFromGitHub,
+  hatchling,
+  pycryptodome,
 }:
-python3Packages.buildPythonPackage rec {
+buildPythonPackage rec {
   pname = "wyzeapy";
   version = "0.6.1";
   pyproject = true;
@@ -14,9 +19,9 @@ python3Packages.buildPythonPackage rec {
     hash = "sha256-pyQIGS+p92gHVdoNaS3RIa1kZ7Ko3KbbTiXT6a2Z7xc=";
   };
 
-  build-system = with python3Packages; [hatchling];
+  build-system = [hatchling];
 
-  dependencies = with python3Packages; [
+  dependencies = [
     aiohttp
     aiodns
     certifi

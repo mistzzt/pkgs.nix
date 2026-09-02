@@ -1,10 +1,11 @@
 {
   buildHomeAssistantComponent,
   fetchFromGitHub,
-  python3Packages,
-  wyzeapy,
+  home-assistant,
 }: let
   data = builtins.fromJSON (builtins.readFile ./hashes.json);
+  inherit (home-assistant) python3Packages;
+  wyzeapy = python3Packages.callPackage ../wyzeapy {};
 in
   buildHomeAssistantComponent rec {
     owner = "SecKatie";
