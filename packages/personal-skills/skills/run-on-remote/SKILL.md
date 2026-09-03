@@ -34,7 +34,7 @@ Run `just --list --list-submodules` from the directory you're working in, not fr
 - **One-off commands are plain ssh you compose yourself**, from the `host` / `dest` in the justfile (or host file) that provided the recipes. Single-quote the remote command; single quotes parse the same in every login shell except for backslashes (fish escapes `\\` and `\'`). For multi-line, quote-heavy, or backslash-carrying work, pipe a script to `ssh <host> bash -s` instead. A command you find yourself re-composing belongs in `remote.just` as a named recipe.
 - **Use managed `nohup` jobs for long unattended commands.** Read `references/nohup.md` completely before starting one; launch and status checks pipe this skill's `assets/nohup-job.sh` over ssh rather than hand-composed shell. Keep foreground ssh for short commands whose output the user needs immediately.
 - **After deleting or renaming files locally, run `just mirror`**, or the stale remote copies linger and can shadow the build. Gitignore remote-only state that should survive a mirror, in a `.gitignore` at or below the sync root; an entry added in the same run already protects.
-- **Use a generous Bash timeout for anything foreground that reaches the remote**, 300000 ms or more, including `just` recipes, which are foreground ssh underneath. Remote builds and benchmarks take minutes, and a short local timeout kills the observer mid-run while looking exactly like a remote failure. A timeout is observation policy, not persistence; it does not make a remote process survive a broken connection.
+- **Use a generous Bash timeout for anything foreground that reaches the remote**, 300000 ms or more. Remote builds and benchmarks take minutes, and a short timeout looks exactly like a remote failure.
 - **Don't run remote-only commands locally.** A repo carrying these recipes is a strong signal the workload doesn't run here.
 - **The rsync recipes are the repo's, not this skill's.** If `sync` / `mirror` / `pull` is wrong or missing, edit the justfile rather than hand-writing rsync: the flags are load-bearing (`references/rsync-flags.md`).
 
@@ -57,7 +57,7 @@ Then copy `assets/remote.just` from this skill's directory to `remote.just` at t
 
 ## Reporting output
 
-Don't conflate a remote-side error with a sync or ssh failure. If rsync or ssh itself failed, say so explicitly; otherwise the failure belongs to the remote command. For a detached job, report the run ID when it starts and report the recorded exit code when it finishes. A missing process without an exit-code file is an unknown result, not success.
+Don't conflate a remote-side error with a sync or ssh failure. If rsync or ssh itself failed, say so explicitly; otherwise the failure belongs to the remote command. For a detached job, report the run ID when it starts and the recorded exit code when it finishes.
 
 ## Gotchas
 
