@@ -1,11 +1,11 @@
 ---
 name: run-on-remote
-description: Sync the current repo, or a subtree of a monorepo, to a remote host over ssh and run commands there via `just` recipes checked into the repo. Use whenever the user asks to run, test, benchmark, compile, profile, or otherwise execute code on a remote machine, even if they never mention ssh, rsync, or just, e.g. "run X on the remote", "test this on the build server", "does this build on the workstation". Sets up the recipes with the user if the repo has none.
+description: Sync the current repo, or a subtree of a monorepo, to a remote host over ssh and run commands there via `just` recipes checked into the repo. Use whenever the user asks to run, test, benchmark, compile, profile, or otherwise execute code on a remote machine, even if they never mention ssh, rsync, or just, e.g. "run X on the remote", "test this on the build server", "does this build on the workstation". Also covers long unattended jobs (overnight builds, benchmarks, training runs) launched detached and checked on later. Sets up the recipes with the user if the repo has none.
 ---
 
 # Run code on a remote host
 
-Some repos can't be exercised on the local machine (missing hardware, a heavier toolchain). The remote workflow is two operations: `rsync` wrapped in `just` recipes that live in the target repo, and plain `ssh`. There is no bespoke driver to learn: list the recipes and run them.
+Some repos can't be exercised on the local machine (missing hardware, a heavier toolchain). The remote workflow uses `rsync` wrapped in `just` recipes that live in the target repo, plus plain `ssh` for short commands and managed `nohup` jobs for long unattended commands. There is no bespoke driver to learn: list the recipes and run them.
 
 ## Step 1: do the recipes exist?
 
@@ -24,6 +24,7 @@ Run `just --list --list-submodules` from the directory you're working in, not fr
 | Push, also deleting remote strays | `just mirror` |
 | Run a named task | whatever `--list` showed, e.g. `just test` |
 | Run a one-off command | `ssh <host> 'cd <dest> && cargo build --release'` |
+| Run a long unattended task | follow `references/nohup.md` and report its run ID |
 | Retrieve artifacts | `just pull out/ results.json` |
 | Use a different host | `REMOTE_HOST=otherhost just test` |
 
@@ -31,8 +32,9 @@ Run `just --list --list-submodules` from the directory you're working in, not fr
 - **Several host modules** (`gpu:`, `tpu:`): pick the one matching what the user asked for, and ask when none obviously does. A host file may pin its host, ignoring `REMOTE_HOST` (see `references/layouts.md`).
 - **Sync before the first run and after any local edit**; a no-op sync is cheap. The run recipes deliberately do not sync, so retrying after a remote-side failure doesn't re-upload the tree.
 - **One-off commands are plain ssh you compose yourself**, from the `host` / `dest` in the justfile (or host file) that provided the recipes. Single-quote the remote command; single quotes parse the same in every login shell except for backslashes (fish escapes `\\` and `\'`). For multi-line, quote-heavy, or backslash-carrying work, pipe a script to `ssh <host> bash -s` instead. A command you find yourself re-composing belongs in `remote.just` as a named recipe.
-- **After deleting or renaming files locally, run `just mirror`**, or the stale remote copies linger and can shadow the build. Gitignore remote-only state that should survive a mirror; an entry added in the same run already protects.
-- **Use a generous Bash timeout**, 300000 ms or more. Remote builds and benchmarks take minutes, and a short timeout looks exactly like a remote failure.
+- **Use managed `nohup` jobs for long unattended commands.** Read `references/nohup.md` completely before starting one; launch and status checks pipe this skill's `assets/nohup-job.sh` over ssh rather than hand-composed shell. Keep foreground ssh for short commands whose output the user needs immediately.
+- **After deleting or renaming files locally, run `just mirror`**, or the stale remote copies linger and can shadow the build. Gitignore remote-only state that should survive a mirror, in a `.gitignore` at or below the sync root; an entry added in the same run already protects.
+- **Use a generous Bash timeout for anything foreground that reaches the remote**, 300000 ms or more. Remote builds and benchmarks take minutes, and a short timeout looks exactly like a remote failure.
 - **Don't run remote-only commands locally.** A repo carrying these recipes is a strong signal the workload doesn't run here.
 - **The rsync recipes are the repo's, not this skill's.** If `sync` / `mirror` / `pull` is wrong or missing, edit the justfile rather than hand-writing rsync: the flags are load-bearing (`references/rsync-flags.md`).
 
@@ -55,7 +57,7 @@ Then copy `assets/remote.just` from this skill's directory to `remote.just` at t
 
 ## Reporting output
 
-Don't conflate a remote-side error with a sync or ssh failure. If rsync or ssh itself failed, say so explicitly; otherwise the failure belongs to the remote command.
+Don't conflate a remote-side error with a sync or ssh failure. If rsync or ssh itself failed, say so explicitly; otherwise the failure belongs to the remote command. For a detached job, report the run ID when it starts and the recorded exit code when it finishes.
 
 ## Gotchas
 
