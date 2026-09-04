@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-    echo "Usage: $0 <zip> --to <dest> [--skip <file>]..." >&2
+    echo "Usage: $0 <archive.zip|archive.tar.gz> --to <dest> [--skip <file>]..." >&2
     exit 1
 }
 
@@ -24,15 +24,23 @@ while true; do
 done
 
 [[ $# -eq 1 && -n $dest ]] || usage
-zip_path=$1
+archive_path=$1
 
-zip_abs=$(cd "$(dirname "$zip_path")" && pwd)/$(basename "$zip_path")
-base=$(basename "$zip_path" .zip)
+archive_abs=$(cd "$(dirname "$archive_path")" && pwd)/$(basename "$archive_path")
+case $archive_path in
+    *.tar.gz) base=$(basename "$archive_path" .tar.gz); format=tar.gz ;;
+    *.zip)    base=$(basename "$archive_path" .zip); format=zip ;;
+    *)        usage ;;
+esac
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-unzip -q "$zip_abs" -d "$work/$base"
+mkdir -p "$work/$base"
+case $format in
+    tar.gz) tar -xzf "$archive_abs" -C "$work/$base" ;;
+    zip)    unzip -q "$archive_abs" -d "$work/$base" ;;
+esac
 
 (cd "$work" && arxiv_latex_cleaner "./$base")
 
