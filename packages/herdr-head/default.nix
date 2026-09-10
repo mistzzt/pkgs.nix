@@ -10,8 +10,8 @@ herdr.overrideAttrs (finalAttrs: prev: {
   src = fetchFromGitHub {
     owner = "herdrdev";
     repo = "herdr";
-    rev = "90e947a6e26e02f10ec7f1694c4eb5b78a86406b";
-    hash = "sha256-9jBtNBphxaqNU1IvEtqfMLjohyJ+iW02OA6HeOUM/Nc=";
+    rev = "58271459401fa461707c042f7f03867ddcfff3ea";
+    hash = "sha256-DueBjxm1QgXmVgttLHlqv1TL32s9K+O+3noJ85FQqDk=";
   };
 
   # buildRustPackage reads cargoHash from its original arguments, so overriding
@@ -26,7 +26,7 @@ herdr.overrideAttrs (finalAttrs: prev: {
     inherit (finalAttrs) pname version;
     src = "${finalAttrs.src}/vendor/libghostty-vt";
     fetchAll = true;
-    hash = "sha256-PnM+hZIlLyQwK8vJgd/Bhjt1lNIz06T8FahwliRmMrY=";
+    hash = "sha256-9n18CdoV1pxrLFPcRd+h6HESmrAqucORlz3klFf/gyk=";
   };
 
   # Head builds report the base release version, which fails versionCheckHook.
