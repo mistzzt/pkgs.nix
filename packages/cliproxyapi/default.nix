@@ -7,16 +7,16 @@
 }:
 buildGoModule.override {go = go_1_26;} rec {
   pname = "cli-proxy-api";
-  version = "7.3.3";
+  version = "7.3.4";
 
   src = fetchFromGitHub {
     owner = "router-for-me";
     repo = "CLIProxyAPI";
     tag = "v${version}";
-    hash = "sha256-ISPoSdPGMXKchMA/sItE3pexmUd7tn6qJAZ1WiydpSY=";
+    hash = "sha256-GskMEQm8fsCDksv1NHGTr2fFJ8rWtbfOnci2wytwmrY=";
   };
 
-  vendorHash = "sha256-hJ/ZZFp9jV8joVTNxVpz+nVd+iVZtjD61fDW1gXzqiE=";
+  vendorHash = "sha256-r3yWkdMcM40G9jV7MxW/qNv3E9WrHavFilW24quEf+8=";
 
   postPatch = ''
     substituteInPlace go.mod --replace-fail 'go 1.26.0' 'go 1.26'
