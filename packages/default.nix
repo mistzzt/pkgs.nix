@@ -5,6 +5,7 @@
   cli-proxy-api-management-center = pkgs.callPackage ./cli-proxy-api-management-center {};
   codex-plugin-cc = pkgs.callPackage ./codex-plugin-cc {};
   extract-keyframes = pkgs.callPackage ./extract-keyframes {};
+  gitignore = pkgs.callPackage ./gitignore {};
   ha-wyzeapi = pkgs.callPackage ./ha-wyzeapi {};
   herdr-head = pkgs.callPackage ./herdr-head {};
   onscripter-yuri = pkgs.callPackage ./onscripter-yuri {};
