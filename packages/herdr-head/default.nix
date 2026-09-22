@@ -10,8 +10,8 @@ herdr.overrideAttrs (finalAttrs: prev: {
   src = fetchFromGitHub {
     owner = "herdrdev";
     repo = "herdr";
-    rev = "621e6b73c4fe4c13562c0906699003d0ca59f0f1";
-    hash = "sha256-IAbFFm1E7/7ryNzvUPdLz4es0ggaoTsdqIHlLkCGowo=";
+    rev = "cd8306d7f35d6329d543944a0257b6bc4b297c8b";
+    hash = "sha256-OyvLHxxPBaN/CNhSJVKY0Eosw96zjq/8Ji3FUmRrJGk=";
   };
 
   # buildRustPackage reads cargoHash from its original arguments, so overriding
