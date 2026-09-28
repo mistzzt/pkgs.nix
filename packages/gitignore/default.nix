@@ -4,13 +4,13 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "gitignore";
-  version = "0-unstable-2026-09-25";
+  version = "0-unstable-2026-09-28";
 
   src = fetchFromGitHub {
     owner = "github";
     repo = "gitignore";
-    rev = "b06d69d5a0b82a187180dac3d46a4ebe1e40bce5";
-    hash = "sha256-FOc/YYH1ViN/GeHLN5DSDv1/Nx6q9r0ZJH+M8p3tIh4=";
+    rev = "62f3997f1917b30f6eaee0c53ac2d791426513f2";
+    hash = "sha256-YSQo7rC4TYZ90X6E2A/O5nx0tam1HkCZO6HQmYiuRHg=";
   };
 
   dontBuild = true;
