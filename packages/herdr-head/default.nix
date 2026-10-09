@@ -2,9 +2,9 @@
   fetchFromGitHub,
   herdr,
   rustPlatform,
-  zig_0_15,
+  zig_0_16,
 }:
-herdr.overrideAttrs (finalAttrs: prev: {
+(herdr.override {zig_0_15 = zig_0_16;}).overrideAttrs (finalAttrs: prev: {
   version = "unstable-2026-10-08";
 
   src = fetchFromGitHub {
@@ -22,11 +22,11 @@ herdr.overrideAttrs (finalAttrs: prev: {
     hash = finalAttrs.cargoHash;
   };
 
-  zigDeps = zig_0_15.fetchDeps {
+  zigDeps = zig_0_16.fetchDeps {
     inherit (finalAttrs) pname version;
     src = "${finalAttrs.src}/vendor/libghostty-vt";
     fetchAll = true;
-    hash = "sha256-9n18CdoV1pxrLFPcRd+h6HESmrAqucORlz3klFf/gyk=";
+    hash = "sha256-Cy0DdSvce+fhOFIfxHMQGF2b2j16UkS27UpGbfC42XI=";
   };
 
   # Head builds report the base release version, which fails versionCheckHook.
