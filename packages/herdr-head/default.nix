@@ -4,7 +4,7 @@
   rustPlatform,
   zig_0_16,
 }:
-(herdr.override {zig_0_15 = zig_0_16;}).overrideAttrs (finalAttrs: prev: {
+herdr.overrideAttrs (finalAttrs: prev: {
   version = "unstable-2026-10-08";
 
   src = fetchFromGitHub {
