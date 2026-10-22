@@ -9,14 +9,14 @@
 }:
 buildPythonPackage rec {
   pname = "wyzeapy";
-  version = "0.7.0";
+  version = "0.8.0";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "SecKatie";
     repo = "wyzeapy";
     tag = "v${version}";
-    hash = "sha256-DL3K9ORmzPDGRLI+QokANRmcXzXtTBELIN/O3R2B4m0=";
+    hash = "sha256-dw5TTmxheT/KzBBfRFB6iuEPIJya7NhaGJ33B3P2Vgs=";
   };
 
   build-system = [hatchling];
