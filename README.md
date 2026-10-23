@@ -35,6 +35,14 @@ For packages vendored as source in this repo (e.g. `personal-skills`), just add
 `packages/<name>/` with the files and a `default.nix`, then register it in
 `packages/default.nix`. No `hashes.json`/`update.py` needed.
 
+## CI repair
+
+[repair.md](.github/workflows/repair.md) uses [GitHub Agentic Workflows](https://docs.github.com/en/actions/tutorials/develop-agentic-workflows-in-github-actions) to investigate failed package builds and updates with Codex. The agent runs Nix checks and proposes a draft PR for human review. Existing PR CI remains the merge gate.
+
+Set the `OPENAI_API_KEY` Actions secret before merging the workflow into `main`. PR publication reuses `APP_ID` and `APP_PRIVATE_KEY` with the existing Contents and Pull requests write permissions. Optionally set `GH_AW_MODEL_AGENT_CODEX` to select the model.
+
+Install the compiler with `gh extension install github/gh-aw --pin v0.93.2`. Edit the Markdown source and regenerate its committed `.lock.yml` with `gh aw compile repair`. The YAML is generated code. No custom repair scripts are needed.
+
 ## License
 
 [MIT](LICENSE)

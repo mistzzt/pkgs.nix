@@ -1,9 +1,0 @@
-{
-  "type": "object",
-  "properties": {
-    "patch": {"type": "string"},
-    "report": {"type": "string"}
-  },
-  "required": ["patch", "report"],
-  "additionalProperties": false
-}
