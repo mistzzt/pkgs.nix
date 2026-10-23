@@ -5,6 +5,9 @@
   makeWrapper,
   python3,
 }:
+let
+  python = python3.withPackages (ps: [ps.numpy]);
+in
 stdenvNoCC.mkDerivation {
   pname = "extract-keyframes";
   version = "0.1.0";
@@ -14,7 +17,7 @@ stdenvNoCC.mkDerivation {
     fileset = lib.fileset.unions [./extract-keyframes ./tests];
   };
 
-  nativeBuildInputs = [makeWrapper python3];
+  nativeBuildInputs = [makeWrapper python];
   nativeCheckInputs = [ffmpeg];
 
   postPatch = ''
@@ -39,7 +42,7 @@ stdenvNoCC.mkDerivation {
   '';
 
   meta = {
-    description = "Extract scene-change keyframes from a video with bounded ffmpeg passes, gap fill, and perceptual dedup";
+    description = "Extract video frames using regional changes against the last retained frame";
     mainProgram = "extract-keyframes";
   };
 }
