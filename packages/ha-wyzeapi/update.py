@@ -19,7 +19,7 @@ HASHES_FILE = Path(__file__).parent / "hashes.json"
 def main() -> None:
     data = load_hashes(HASHES_FILE)
     current_rev = data["rev"]
-    latest_rev = fetch_github_latest_commit("SecKatie", "ha-wyzeapi", "master")
+    latest_rev = fetch_github_latest_commit("SecKatie", "ha-wyzeapi", "main")
 
     print(f"Current: {current_rev[:12]}, Latest: {latest_rev[:12]}")
 
