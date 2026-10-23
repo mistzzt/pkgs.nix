@@ -5,18 +5,18 @@
   zig_0_16,
 }:
 herdr.overrideAttrs (finalAttrs: prev: {
-  version = "unstable-2026-10-21";
+  version = "unstable-2026-10-23";
 
   src = fetchFromGitHub {
     owner = "herdrdev";
     repo = "herdr";
-    rev = "5bd900d88c80d95f5b145397e45bbeea398b8165";
-    hash = "sha256-f5+w+PBSYVXA2vQYC/c4+oaDIfmU9esBs9EoHNvR/2g=";
+    rev = "43b36b68caf593e7623fa389462d8ba097edcb11";
+    hash = "sha256-2dnDAC2w2do8HPQFffuTPXU4wQ6yLwiTrYJRgT8qf9M=";
   };
 
   # buildRustPackage reads cargoHash from its original arguments, so overriding
   # it alone has no effect; wire it into an explicit cargoDeps instead.
-  cargoHash = "sha256-a6DgQodo+qa5yg/d+yMfsM9EUv2LQRFrqZgmwgVxggE=";
+  cargoHash = "sha256-hppCIcIEAbefGYz1PgHmGuwCcnsr5iS9WtjTA+gCI2M=";
   cargoDeps = rustPlatform.fetchCargoVendor {
     inherit (finalAttrs) pname version src;
     hash = finalAttrs.cargoHash;
