@@ -12,7 +12,14 @@ permissions:
   contents: read
   actions: read
   pull-requests: read
-engine: codex
+engine:
+  id: codex
+  env:
+    OPENAI_BASE_URL_ENV: PRIVATE_OPENAI_BASE_URL
+    PRIVATE_OPENAI_BASE_URL: ${{ steps.inference.outputs.base_url }}
+sandbox:
+  agent:
+    model-fallback: false
 timeout-minutes: 40
 concurrency:
   group: repair-ci
@@ -25,10 +32,26 @@ tools:
   bash: true
   edit:
 steps:
+  - id: inference
+    name: Configure private inference endpoint
+    env:
+      PRIVATE_OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL || 'https://api.openai.com/v1' }}
+    run: |
+      [[ "$PRIVATE_OPENAI_BASE_URL" != *$'\n'* && "$PRIVATE_OPENAI_BASE_URL" != *$'\r'* ]]
+      printf 'base_url=%s\n' "$PRIVATE_OPENAI_BASE_URL" >> "$GITHUB_OUTPUT"
   - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31
     with:
       set_as_trusted_user: false
 safe-outputs:
+  threat-detection:
+    steps:
+      - id: inference
+        name: Configure private inference endpoint
+        env:
+          PRIVATE_OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL || 'https://api.openai.com/v1' }}
+        run: |
+          [[ "$PRIVATE_OPENAI_BASE_URL" != *$'\n'* && "$PRIVATE_OPENAI_BASE_URL" != *$'\r'* ]]
+          printf 'base_url=%s\n' "$PRIVATE_OPENAI_BASE_URL" >> "$GITHUB_OUTPUT"
   create-pull-request:
     github-app:
       app-id: ${{ secrets.APP_ID }}
