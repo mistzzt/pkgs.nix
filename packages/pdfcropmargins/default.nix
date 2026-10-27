@@ -28,7 +28,10 @@ in
 
     # ghostscript / pdftoppm are invoked at runtime for bounding-box detection.
     makeWrapperArgs = [
-      "--prefix PATH : ${lib.makeBinPath [ghostscript popplerUtils]}"
+      "--prefix"
+      "PATH"
+      ":"
+      (lib.makeBinPath [ghostscript popplerUtils])
     ];
 
     pythonImportsCheck = ["pdfCropMargins"];
