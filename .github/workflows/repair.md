@@ -15,11 +15,15 @@ permissions:
 engine:
   id: codex
   env:
+    NIX_REMOTE: daemon
+    NIX_CONFIG: experimental-features = nix-command flakes
     OPENAI_BASE_URL_ENV: PRIVATE_OPENAI_BASE_URL
     PRIVATE_OPENAI_BASE_URL: ${{ steps.inference.outputs.base_url }}
 sandbox:
   agent:
     model-fallback: false
+    mounts:
+      - /nix:/nix:ro
 timeout-minutes: 40
 concurrency:
   group: repair-ci
