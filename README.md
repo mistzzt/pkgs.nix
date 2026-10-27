@@ -43,7 +43,7 @@ Set the `OPENAI_API_KEY` Actions secret before merging the workflow into `main`.
 
 For a private OpenAI-compatible endpoint, set the `OPENAI_BASE_URL` Actions **secret** (not a variable) to its HTTPS base URL, including any API path such as `/v1`. Omit it to use OpenAI. The endpoint must support the Responses API and use the default HTTPS port, without URL credentials, query parameters, or fragments. Both agents route through the firewall proxy, which excludes the URL from the agent environment and redacts the endpoint from its logs. The hostname does not need to appear in the repository network allowlist.
 
-Install the compiler with `gh extension install github/gh-aw --pin v0.93.2`. Edit the Markdown source and regenerate its committed `.lock.yml` with `gh aw compile repair`. The YAML is generated code. No custom repair scripts are needed.
+Edit the Markdown source and regenerate its committed `.lock.yml` with `nix run github:NixOS/nixpkgs/nixos-unstable#gh-aw -- compile repair`. This uses the compiler packaged in the current nixos-unstable branch, without installing a GitHub CLI extension. The YAML is generated code.
 
 ## License
 
