@@ -45,7 +45,16 @@ Set the `OPENAI_API_KEY` Actions secret before merging the workflow into `main`.
 
 For a private OpenAI-compatible endpoint, set the `OPENAI_BASE_URL` Actions **secret** (not a variable) to its HTTPS base URL, including any API path such as `/v1`. Omit it to use OpenAI. The endpoint must support the Responses API and use the default HTTPS port, without URL credentials, query parameters, or fragments. Both agents route through the firewall proxy, which excludes the URL from the agent environment and redacts the endpoint from its logs. The hostname does not need to appear in the repository network allowlist.
 
-Edit the Markdown source and regenerate its committed `.lock.yml` with `nix run github:NixOS/nixpkgs/nixos-unstable#gh-aw -- compile repair`. This uses the compiler packaged in the current nixos-unstable branch, without installing a GitHub CLI extension. The firewall runtime is pinned separately to retain the tested private-endpoint support. The YAML is generated code.
+Edit the Markdown source and regenerate its committed `.lock.yml` using the compiler in current nixos-unstable:
+
+```bash
+nix shell github:NixOS/nixpkgs/nixos-unstable#gh-aw -c bash -c '
+  version=$(gh-aw version 2>&1)
+  gh-aw compile repair --gh-aw-ref "v${version##* }"
+'
+```
+
+`--gh-aw-ref` pins runtime actions to the matching compiler release. This avoids the Nix build's default development mode, which emits local action paths that break when checkout replaces the workspace. No GitHub CLI extension installation is needed. The firewall runtime is pinned separately to retain the tested private-endpoint support. The YAML is generated code.
 
 ## License
 
