@@ -24,7 +24,6 @@ engine:
     PRIVATE_OPENAI_BASE_URL: ${{ steps.inference.outputs.base_url }}
 sandbox:
   agent:
-    version: "0.28.70"
     model-fallback: false
     mounts:
       - /nix:/nix:ro
