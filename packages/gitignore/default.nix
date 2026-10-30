@@ -9,8 +9,8 @@ stdenvNoCC.mkDerivation {
   src = fetchFromGitHub {
     owner = "github";
     repo = "gitignore";
-    rev = "47c9b1c96aa0879010fe3f51cfb5c0ef754736e8";
-    hash = "sha256-LEu5S9c6Cb2aPlLyDqTgLOz2r064cYBwaicAZa6WNxg=";
+    rev = "9402f6ab0fb9dbbc6be7958f75ff43d7a83f92ca";
+    hash = "sha256-f3RAZSo3nysUZeaUSs1ql8VD/olvGYei5+8lGQ0Q+qA=";
   };
 
   dontBuild = true;
