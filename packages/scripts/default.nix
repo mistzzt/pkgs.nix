@@ -15,6 +15,7 @@
     extract-and-strip = [arxiv-latex-cleaner coreutils findutils getopt gnutar unzip];
     git-prune-local = [git];
     rcode = [coreutils hostname];
+    forward = [];
   };
   mkShellScript = name: runtimeInputs:
     writeShellApplication {
