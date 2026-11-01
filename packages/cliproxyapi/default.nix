@@ -7,13 +7,13 @@
 }:
 buildGoModule.override {go = go_1_27;} rec {
   pname = "cli-proxy-api";
-  version = "8.0.50";
+  version = "8.0.51";
 
   src = fetchFromGitHub {
     owner = "router-for-me";
     repo = "CLIProxyAPI";
     tag = "v${version}";
-    hash = "sha256-bFnFBcxz6p5sxiNUfYcCUUwJ65nA2qfXptghwugW66w=";
+    hash = "sha256-lzhmN2BRKTod1ewQdE0n9N6ZEj3MUwNBoBAZNowdtGs=";
   };
 
   vendorHash = "sha256-yMO0DdE0pjtFxWaQXV17enV8u0KA5fIUbE8Gui/RvWU=";
