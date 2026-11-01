@@ -5,7 +5,7 @@ usage() {
     cat >&2 <<EOF2
 Usage: $(basename "$0") <host> <port> [port...]
 
-Forward each 127.0.0.1:<port> on this machine to 127.0.0.1:<port> on <host>
+Forward each localhost:<port> on this machine to localhost:<port> on <host>
 over a single SSH connection. Press Ctrl+C to stop.
 
 Example: $(basename "$0") dev 3000 5173 8080
@@ -28,7 +28,7 @@ for port in "$@"; do
         usage
     fi
     port=$((10#$port))
-    forwards+=(-L "127.0.0.1:$port:127.0.0.1:$port")
+    forwards+=(-L "localhost:$port:localhost:$port")
 done
 
 echo "Forwarding $* via $host (Ctrl+C to stop)" >&2
