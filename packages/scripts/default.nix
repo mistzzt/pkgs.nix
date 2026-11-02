@@ -17,7 +17,7 @@
     git-prune-local = [git];
     rcode = [coreutils hostname];
     forward = [];
-    rcp = [coreutils];
+    rcp = [coreutils hostname];
     rgt = [coreutils rsync];
   };
   mkShellScript = name: runtimeInputs:
