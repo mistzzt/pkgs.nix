@@ -23,7 +23,10 @@ die() {
 
 # Keep in sync with rcp.sh.
 host_re='^([A-Za-z0-9._-]+@)?([A-Za-z0-9][A-Za-z0-9._-]*|\[[0-9A-Fa-f:.]+\])$'
-header_re='^rcp/1 ([^ ]+) ([1-9][0-9]*)$'
+header_re='^rcp/1 ([^ ]+)$'
+footer='rcp/1 end'
+# rsync's receiver matches requested names as patterns, so these can never be fetched.
+unsupported_re='\\[*?[]'
 
 assume_yes=0
 host=""
@@ -58,19 +61,21 @@ clip=$(paste_clipboard)
 [[ -n $clip ]] || die "clipboard is empty; run rcp on the remote first"
 mapfile -t lines <<<"$clip"
 
-# The header marks rcp output and its count catches truncation; it does not authenticate.
+# The header marks rcp output and the footer catches truncation; neither authenticates.
 [[ ${lines[0]} =~ $header_re ]] || die "clipboard does not contain rcp output; run rcp on the remote first"
-clip_host=${BASH_REMATCH[1]} count=${BASH_REMATCH[2]}
+clip_host=${BASH_REMATCH[1]}
 [[ $clip_host =~ $host_re ]] || die "clipboard names an invalid host: $clip_host"
-paths=("${lines[@]:1}")
-((${#paths[@]} == count)) || die "clipboard is truncated or corrupted (header says $count paths, found ${#paths[@]})"
+[[ ${#lines[@]} -ge 3 && ${lines[-1]} == "$footer" ]] || die "clipboard rcp output is truncated or corrupted"
+paths=("${lines[@]:1:${#lines[@]}-2}")
 
 # The clipboard may be written by untrusted remote code, so hold paths to what rcp produces.
 names=()
 for path in "${paths[@]}"; do
     [[ ! $path =~ [[:cntrl:]] ]] || die "clipboard path contains control characters"
-    [[ $path == /* && $path != */ ]] || die "clipboard path is not a normalized absolute path: $path"
-    [[ ! $path =~ [*?[] ]] || die "clipboard path contains wildcard characters (*?[): $path"
+    if [[ $path != /* || $path == */ || $path == *//* || $path =~ /\.\.?(/|$) ]]; then
+        die "clipboard path is not a normalized absolute path: $path"
+    fi
+    [[ ! $path =~ $unsupported_re ]] || die "rsync cannot request paths with a backslash before *?[: $path"
     name=${path##*/}
     for seen in "${names[@]}"; do
         [[ $seen != "$name" ]] || die "multiple entries named '$name' would collide in $dest"
@@ -84,7 +89,8 @@ sources=()
 echo "Source:" >&2
 for path in "${paths[@]}"; do
     printf '  %s:%s\n' "$host" "$path" >&2
-    sources+=("$host:$path")
+    # The /./ marker makes rsync recreate only the basename under dest.
+    sources+=("${path%/*}/./${path##*/}")
 done
 printf 'Dest:   %s/\n' "$dest" >&2
 
@@ -95,4 +101,5 @@ if ((!assume_yes)); then
 fi
 
 mkdir -p -- "$dest"
-exec rsync -ah --progress -- "${sources[@]}" "$dest/"
+# --files-from takes literal names, so rsync never expands wildcards in them.
+exec rsync -ahr --progress --from0 --files-from=- -- "$host:/" "$dest/" < <(printf '%s\0' "${sources[@]}")

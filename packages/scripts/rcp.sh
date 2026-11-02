@@ -22,6 +22,7 @@ die() {
 }
 
 # Keep in sync with rgt.sh.
+unsupported_re='\\[*?[]'
 host_re='^([A-Za-z0-9._-]+@)?([A-Za-z0-9][A-Za-z0-9._-]*|\[[0-9A-Fa-f:.]+\])$'
 
 host=""
@@ -44,12 +45,12 @@ for arg in "$@"; do
     path=$(realpath -e -- "$arg" 2>/dev/null) || die "not found: $arg"
     [[ $path != / ]] || die "refusing to copy /"
     [[ ! $path =~ [[:cntrl:]] ]] || die "path contains control characters: $arg"
-    [[ ! $path =~ [*?[] ]] || die "path contains wildcard characters (*?[): $arg"
+    [[ ! $path =~ $unsupported_re ]] || die "rsync cannot fetch paths with a backslash before *?[: $arg"
     paths+=("$path")
 done
 
-# Format read by rgt: a "rcp/1 HOST COUNT" header, then one absolute path per line.
-payload=$(printf 'rcp/1 %s %d\n' "$host" "${#paths[@]}"; printf '%s\n' "${paths[@]}")
+# Format read by rgt: an "rcp/1 HOST" header, one absolute path per line, then "rcp/1 end".
+payload=$(printf 'rcp/1 %s\n' "$host"; printf '%s\n' "${paths[@]}"; printf 'rcp/1 end\n')
 
 # Write to the terminal directly so the sequence survives redirected stdout.
 tty=/dev/tty
