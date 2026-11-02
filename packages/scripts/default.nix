@@ -9,6 +9,7 @@
   git,
   gnutar,
   hostname,
+  rsync,
   unzip,
 }: let
   shellScripts = {
@@ -16,6 +17,8 @@
     git-prune-local = [git];
     rcode = [coreutils hostname];
     forward = [];
+    rcp = [coreutils hostname];
+    rgt = [coreutils rsync];
   };
   mkShellScript = name: runtimeInputs:
     writeShellApplication {
