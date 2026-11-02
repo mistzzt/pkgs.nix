@@ -6,7 +6,8 @@ usage() {
 Usage: <command> | $(basename "$0")
 
 Copy stdin byte for byte to the local clipboard via OSC 52, which works over
-SSH and inside terminal multiplexers that forward it.
+SSH and inside terminal multiplexers that forward it. Under tmux, this needs
+"set -g set-clipboard on" (the default, "external", drops it).
 
 Example: git rev-parse HEAD | tr -d '\n' | $(basename "$0")
 EOF2
@@ -18,6 +19,8 @@ case ${1-} in
 esac
 [[ $# -eq 0 ]] || usage
 [[ ! -t 0 ]] || usage
+# With stdin closed, bash would hand the $(...) pipe to base64 as fd 0 and hang.
+{ : 3<&0; } 2>/dev/null || { echo "error: stdin is closed" >&2; exit 2; }
 
 # Many terminals silently drop OSC 52 payloads past roughly 100 KB of base64.
 limit=100000
