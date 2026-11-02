@@ -19,6 +19,7 @@
     forward = [];
     rcp = [coreutils hostname];
     rgt = [coreutils rsync];
+    osc52 = [coreutils];
   };
   mkShellScript = name: runtimeInputs:
     writeShellApplication {
