@@ -100,7 +100,6 @@ safe-outputs:
             repositories: ${{ github.event.repository.name }}
             permission-contents: write
             permission-pull-requests: write
-            permission-workflows: write
         - env:
             GH_TOKEN: ${{ steps.app-token.outputs.token }}
             BRANCH: ${{ github.event.workflow_run.head_branch }}
