@@ -7,13 +7,15 @@
   findutils,
   getopt,
   git,
+  gnugrep,
+  gnused,
   gnutar,
   hostname,
   rsync,
   unzip,
 }: let
   shellScripts = {
-    extract-and-strip = [arxiv-latex-cleaner coreutils findutils getopt gnutar unzip];
+    extract-and-strip = [arxiv-latex-cleaner coreutils findutils getopt gnugrep gnused gnutar unzip];
     git-prune-local = [git];
     rcode = [coreutils hostname];
     forward = [];
