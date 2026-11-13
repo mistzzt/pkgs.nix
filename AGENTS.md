@@ -15,8 +15,8 @@ nix build .#<package-name>
 # Build all packages
 nix build .#anthropic-skills .#cli-proxy-api-management-center .#onscripter-yuri
 
-# Run a package's update script (requires nix and GITHUB_TOKEN for API rate limits)
-python3 packages/<name>/update.py
+# Update one package, exactly as CI does (requires nix and GITHUB_TOKEN for API rate limits)
+scripts/update-package.sh <name>
 
 # Enter a shell with all packages available
 nix shell .#<package-name>
@@ -30,6 +30,7 @@ nix shell .#<package-name>
 - `default.nix` — the Nix derivation, reads `hashes.json` for version/rev and hash
 - `hashes.json` — pinned `{version, hash}` or `{rev, hash}` (source of truth for current version)
 - `update.py` — standalone script that checks upstream, computes new hashes via `nix-prefetch-url`/`nix store prefetch-file`, and writes `hashes.json`
+- `nix-update-args` — used instead of `update.py` for packages that nix-update can update on its own. One nix-update argument per line (`#` comments allowed, may be empty). nix-update comes from the nixpkgs in `flake.lock`.
 
 **Two package patterns exist:**
 - Release-based (onscripter-yuri, cli-proxy-api-management-center): tracks GitHub releases, `hashes.json` has `version` field
@@ -38,5 +39,5 @@ nix shell .#<package-name>
 **Updater library** (`scripts/updater/`): shared Python utilities used by all `update.py` scripts. Provides `fetch_github_latest_release`, `fetch_github_latest_commit`, `should_update`, `nix_prefetch_github`, `calculate_url_hash`, and `load_hashes`/`save_hashes`.
 
 **CI workflows:**
-- `update.yml` — daily cron (6AM UTC) runs each package's `update.py`, creates/updates PRs on `update/<pkg>` branches with auto-merge
+- `update.yml` — daily cron (6AM UTC) runs `scripts/update-package.sh` for each package with an `update.py` or `nix-update-args`, creates/updates PRs on `update/<pkg>` branches with auto-merge
 - `build.yml` — PR gate that detects changed packages and runs `nix build` on them, pushes to Cachix

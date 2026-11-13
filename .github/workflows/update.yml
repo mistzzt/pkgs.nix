@@ -24,7 +24,7 @@ jobs:
           items="[]"
           for dir in packages/*/; do
             pkg=$(basename "$dir")
-            if [ ! -f "$dir/update.py" ]; then
+            if [ ! -f "$dir/update.py" ] && [ ! -f "$dir/nix-update-args" ]; then
               continue
             fi
             if [ -n "$filter" ]; then
@@ -72,8 +72,9 @@ jobs:
         id: update
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          PKG: ${{ matrix.package }}
         run: |
-          python3 packages/${{ matrix.package }}/update.py
+          scripts/update-package.sh "$PKG"
 
           if git diff --quiet; then
             echo "updated=false" >> "$GITHUB_OUTPUT"
