@@ -12,7 +12,7 @@ PACKAGE_FILE = Path(__file__).parent / "default.nix"
 def main() -> None:
     subprocess.run(
         [
-            "nix", "run", "nixpkgs#nix-update", "--",
+            "nix", "run", "--inputs-from", ".", "nixpkgs#nix-update", "--",
             "herdr-head",
             "--flake",
             "--version=branch=master",
