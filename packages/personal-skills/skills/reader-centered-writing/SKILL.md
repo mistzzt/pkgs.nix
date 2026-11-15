@@ -14,7 +14,7 @@ Clear writing does not require explaining everything. It requires supplying the 
 ## Workflow
 
 1. **Identify audience, purpose, and genre.** Determine what readers likely know, what they want or need, and what the writer wants them to understand, feel, decide, or do. Preserve the author's voice and constraints. For technical or file-based material, consult surrounding passages and evidence, not isolated snippets, when flow is at issue.
-2. **Recover the intended throughline.** State privately in one sentence what the passage is trying to accomplish. For a section, sketch how its paragraphs advance that goal. If the purpose is ambiguous, flag it rather than inventing one.
+2. **Recover the intended throughline.** State privately in one sentence what the passage is trying to accomplish. For a section or whole document, sketch how its paragraphs or sections develop the central question and answer before editing sentences. A sequence of relevant topics is not yet a developed argument. If the purpose is ambiguous, flag it rather than inventing one.
 3. **Locate reader friction.** Find where the reader must supply an unstated premise, infer a change in topic, guess an undefined term, wait too long for the point, or wonder why a detail matters. Differentiate a missing *connection* from an actually unsupported *claim*.
 4. **Choose the smallest structural fix.** Reorder statements, add one motivated bridge, replace a vague subject, define a term in context, move detail to its point of use, or split a sentence that does too many jobs. For larger structural problems, propose an outline before line edits.
 5. **Refine locally.** Use direct subjects and verbs; keep referents and pronouns clear; make comparisons explicit; adjust pacing and sentence length to the content. Remove hollow abstraction, repetitive summaries, and unearned rhetorical flourishes. Do not introduce generic transitional filler or inflate concise good prose.
@@ -32,6 +32,8 @@ The principle is **reader questions drive information order**. Before adding a f
 - **Essay, story, or personal writing:** establish context, curiosity, or emotional stakes -> develop the experience or observation -> reveal its significance at a deliberate pace. Do not spoil intentional discovery merely to put a thesis first.
 
 These are flexible progressions, not templates to impose on every paragraph. Some good writing rightly withholds a conclusion, opens with an example, or offers a terse definition without preamble.
+
+Choose detail according to the job of the passage. An introduction should establish the common problem and approach before surveying individual contributions; defer technical distinctions that do not help establish them. When the difficulty remains abstract, use a small, accurate example to show where a straightforward approach fails, then explain how the subsequent distinctions or contributions address that difficulty. Use supplied facts or clearly label a hypothetical illustration; do not invent research findings or force a progression the material does not support.
 
 ## Frequent failure modes and repairs
 
